@@ -1,30 +1,34 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:dionysus_emotion/main.dart';
+import 'package:dionysus_emotion/presentation/onboarding/onboarding_state.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  test('OnboardingState canContinueFromCurrent — étape 0 toujours validable',
+      () {
+    const state = OnboardingState();
+    expect(state.canContinueFromCurrent, isTrue);
+  });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  test('OnboardingState canContinueFromCurrent — étape 1 exige un prénom', () {
+    const empty = OnboardingState(currentStep: 1);
+    const filled = OnboardingState(currentStep: 1, parentName: 'Marie');
+    expect(empty.canContinueFromCurrent, isFalse);
+    expect(filled.canContinueFromCurrent, isTrue);
+  });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  test(
+      'OnboardingState canContinueFromCurrent — étape 3 exige date et stage',
+      () {
+    final partial = OnboardingState(
+      currentStep: 3,
+      birthDate: DateTime(2026, 4, 3),
+    );
+    final complete = OnboardingState(
+      currentStep: 3,
+      birthDate: DateTime(2026, 4, 3),
+      stageId: 1,
+    );
+    expect(partial.canContinueFromCurrent, isFalse);
+    expect(complete.canContinueFromCurrent, isTrue);
   });
 }
