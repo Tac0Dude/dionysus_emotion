@@ -4,6 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/providers.dart';
 import '../../domain/entities/parent.dart';
 import '../../domain/entities/stage.dart';
+import '../onboarding/onboarding_state.dart';
+import '../onboarding/widgets/cream_text_field.dart';
+import '../security/lock_controller.dart';
+import '../security/lock_settings_screen.dart';
 import '../shell/bottom_nav.dart';
 import '../theme/app_colors.dart';
 
@@ -62,6 +66,44 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         duration: Duration(seconds: 2),
       ),
     );
+  }
+
+  Future<void> _editFirstName(Parent parent) async {
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (context) => _FirstNameDialog(initial: parent.firstName),
+    );
+    final trimmed = newName?.trim();
+    if (trimmed == null || trimmed.isEmpty || trimmed == parent.firstName) {
+      return;
+    }
+    await ref.read(parentRepositoryProvider).updateFirstName(
+          parentId: parent.id,
+          firstName: trimmed,
+        );
+  }
+
+  Future<void> _editBaby(Parent parent) async {
+    final result = await showModalBottomSheet<_BabyEditResult>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => _BabyEditSheet(parent: parent),
+    );
+    if (result == null) return;
+    final unchanged = result.babyFirstName == parent.babyFirstName &&
+        result.babyBirthDate == parent.babyBirthDate &&
+        result.gestationalAgeWeeks == parent.gestationalAgeWeeks;
+    if (unchanged) return;
+    await ref.read(parentRepositoryProvider).updateBaby(
+          parentId: parent.id,
+          babyFirstName: result.babyFirstName,
+          babyBirthDate: result.babyBirthDate,
+          gestationalAgeWeeks: result.gestationalAgeWeeks,
+        );
   }
 
   Future<void> _pickStage(Parent parent) async {
@@ -172,7 +214,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             icon: Icons.person_outline,
             title: 'Prénom',
             subtitle: parent.firstName,
-            onTap: _comingSoon,
+            onTap: () => _editFirstName(parent),
           ),
           const SizedBox(height: 12),
           _SettingsCard(
@@ -180,7 +222,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             title: 'Mon bébé',
             subtitle:
                 '${parent.babyFirstName} · né le ${_formatBirthDate(parent.babyBirthDate)}',
-            onTap: _comingSoon,
+            onTap: () => _editBaby(parent),
           ),
           const SizedBox(height: 12),
           _SettingsCard(
@@ -199,11 +241,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 22),
           const _SectionTitle('Confidentialité'),
-          _SettingsCard(
-            icon: Icons.lock_outline,
-            title: 'Verrouillage',
-            subtitle: 'PIN ou biométrie',
-            onTap: _comingSoon,
+          Consumer(
+            builder: (context, ref, _) {
+              final lock = ref.watch(lockControllerProvider);
+              final subtitle = !lock.isPinSet
+                  ? 'Désactivé'
+                  : lock.biometricEnabled
+                      ? 'Code PIN · biométrie'
+                      : 'Code PIN';
+              return _SettingsCard(
+                icon: Icons.lock_outline,
+                title: 'Verrouillage',
+                subtitle: subtitle,
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const LockSettingsScreen(),
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -294,6 +350,304 @@ class _SettingsCard extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FirstNameDialog extends StatefulWidget {
+  final String initial;
+
+  const _FirstNameDialog({required this.initial});
+
+  @override
+  State<_FirstNameDialog> createState() => _FirstNameDialogState();
+}
+
+class _FirstNameDialogState extends State<_FirstNameDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initial);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final value = _controller.text.trim();
+    if (value.isEmpty) return;
+    Navigator.of(context).pop(value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppColors.background,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+      ),
+      title: Text(
+        'Ton prénom',
+        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+      ),
+      content: CreamTextField(
+        controller: _controller,
+        label: 'Prénom',
+        autofocus: true,
+        textInputAction: TextInputAction.done,
+        onChanged: (_) => setState(() {}),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text(
+            'Annuler',
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+        ),
+        TextButton(
+          onPressed: _controller.text.trim().isEmpty ? null : _submit,
+          child: const Text(
+            'Enregistrer',
+            style: TextStyle(
+              color: AppColors.primary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BabyEditResult {
+  final String babyFirstName;
+  final DateTime babyBirthDate;
+  final int gestationalAgeWeeks;
+
+  const _BabyEditResult({
+    required this.babyFirstName,
+    required this.babyBirthDate,
+    required this.gestationalAgeWeeks,
+  });
+}
+
+class _BabyEditSheet extends StatefulWidget {
+  final Parent parent;
+
+  const _BabyEditSheet({required this.parent});
+
+  @override
+  State<_BabyEditSheet> createState() => _BabyEditSheetState();
+}
+
+class _BabyEditSheetState extends State<_BabyEditSheet> {
+  late final TextEditingController _nameController;
+  late DateTime _birthDate;
+  late int _weeks;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController =
+        TextEditingController(text: widget.parent.babyFirstName);
+    _birthDate = widget.parent.babyBirthDate;
+    _weeks = widget.parent.gestationalAgeWeeks;
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _birthDate,
+      firstDate: DateTime(now.year - 2),
+      lastDate: now,
+      helpText: 'Date de naissance',
+      cancelText: 'Annuler',
+      confirmText: 'OK',
+    );
+    if (picked != null) {
+      setState(() => _birthDate = picked);
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    final dd = date.day.toString().padLeft(2, '0');
+    final mm = date.month.toString().padLeft(2, '0');
+    return '$dd/$mm/${date.year}';
+  }
+
+  void _submit() {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) return;
+    Navigator.of(context).pop(
+      _BabyEditResult(
+        babyFirstName: name,
+        babyBirthDate: _birthDate,
+        gestationalAgeWeeks: _weeks,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          24,
+          20,
+          24,
+          24 + MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Mon bébé',
+                style: textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 20),
+              CreamTextField(
+                controller: _nameController,
+                label: 'Prénom du bébé',
+                textInputAction: TextInputAction.done,
+                onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Date de naissance',
+                style: TextStyle(
+                  fontSize: 15,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 10),
+              GestureDetector(
+                onTap: _pickDate,
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.cream,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.primary, width: 1.4),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.calendar_month_outlined,
+                        color: AppColors.textPrimary,
+                        size: 22,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        _formatDate(_birthDate),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Terme (semaines)',
+                style: TextStyle(
+                  fontSize: 15,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Text(
+                    '${OnboardingState.minWeeks}',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Expanded(
+                    child: Slider(
+                      value: _weeks.toDouble(),
+                      min: OnboardingState.minWeeks.toDouble(),
+                      max: OnboardingState.maxWeeks.toDouble(),
+                      divisions:
+                          OnboardingState.maxWeeks - OnboardingState.minWeeks,
+                      label: '$_weeks sem',
+                      onChanged: (v) => setState(() => _weeks = v.round()),
+                    ),
+                  ),
+                  const Text(
+                    '${OnboardingState.maxWeeks}',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              Center(
+                child: Text(
+                  '$_weeks sem',
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed:
+                      _nameController.text.trim().isEmpty ? null : _submit,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: const Text(
+                    'Enregistrer',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

@@ -27,6 +27,11 @@ dependencies:
   # Typography
   google_fonts: ^6.2.1
 
+  # Security (app lock: PIN + biometrics)
+  local_auth: ^2.3.0
+  flutter_secure_storage: ^9.2.2
+  crypto: ^3.0.5
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

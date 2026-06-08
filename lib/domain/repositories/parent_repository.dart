@@ -26,4 +26,16 @@ abstract class ParentRepository {
     required int parentId,
     required int stageId,
   });
+
+  Future<void> updateFirstName({
+    required int parentId,
+    required String firstName,
+  });
+
+  Future<void> updateBaby({
+    required int parentId,
+    required String babyFirstName,
+    required DateTime babyBirthDate,
+    required int gestationalAgeWeeks,
+  });
 }

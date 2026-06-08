@@ -24,7 +24,9 @@ android {
         applicationId = "ch.heg.dionysus.emotion.dionysus_emotion"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // Raised to 23 for flutter_secure_storage (EncryptedSharedPreferences)
+        // and local_auth biometric APIs.
+        minSdk = maxOf(flutter.minSdkVersion, 23)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

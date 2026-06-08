@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'data/providers.dart';
 import 'presentation/entry/screens/quadrant_selection_screen.dart';
 import 'presentation/onboarding/onboarding_flow.dart';
+import 'presentation/security/lock_gate.dart';
 import 'presentation/theme/app_colors.dart';
 import 'presentation/theme/app_theme.dart';
 
@@ -28,7 +29,7 @@ class DionysusApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      home: const _AppRoot(),
+      home: const LockGate(child: _AppRoot()),
     );
   }
 }

@@ -77,4 +77,30 @@ class ParentRepositoryImpl implements ParentRepository {
       ParentsCompanion(stageId: Value(stageId)),
     );
   }
+
+  @override
+  Future<void> updateFirstName({
+    required int parentId,
+    required String firstName,
+  }) async {
+    await (_db.update(_db.parents)..where((p) => p.id.equals(parentId))).write(
+      ParentsCompanion(firstName: Value(firstName)),
+    );
+  }
+
+  @override
+  Future<void> updateBaby({
+    required int parentId,
+    required String babyFirstName,
+    required DateTime babyBirthDate,
+    required int gestationalAgeWeeks,
+  }) async {
+    await (_db.update(_db.parents)..where((p) => p.id.equals(parentId))).write(
+      ParentsCompanion(
+        babyFirstName: Value(babyFirstName),
+        babyBirthDate: Value(babyBirthDate),
+        gestationalAgeWeeks: Value(gestationalAgeWeeks),
+      ),
+    );
+  }
 }
