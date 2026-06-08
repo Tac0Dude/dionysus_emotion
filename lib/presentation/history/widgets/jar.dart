@@ -139,42 +139,64 @@ class Jar extends StatelessWidget {
   List<_Placed> _pack(List<EmotionBubbleData> bubbles, double width) {
     if (width <= 0 || bubbles.isEmpty) return const [];
 
-    // Stable seed so the layout doesn't jump around between rebuilds.
-    final seed = bubbles.fold<int>(17, (acc, b) => acc * 31 + b.id);
-    final random = math.Random(seed);
-
-    // Big bubbles settle first so smaller ones can perch on top.
+    // Les grosses bulles (intensité forte) se tassent au fond en premier ; les
+    // plus petites comblent ensuite les creux. Tri stable pour un rendu figé.
     final sorted = [...bubbles]..sort((a, b) {
         final c = b.intensity.compareTo(a.intensity);
         if (c != 0) return c;
-        return b.id.compareTo(a.id);
+        return a.id.compareTo(b.id);
       });
 
     final w = width.floor();
+    // skyline[k] = hauteur déjà remplie à la colonne k (depuis le bas).
     final skyline = List<double>.filled(w, 0.0);
     final placed = <_Placed>[];
+    final center = w / 2;
 
     for (final bubble in sorted) {
       final size = _bubbleSizes[bubble.intensity - 1];
       final span = size.ceil();
-      if (span > w) continue;
 
-      // Pick a random horizontal position; the bubble falls straight down
-      // from there and rests on whatever it meets first.
-      final maxStart = w - span;
-      final startX = maxStart > 0 ? random.nextInt(maxStart + 1) : 0;
-      var localMax = 0.0;
-      for (var k = startX; k < startX + span; k++) {
-        if (skyline[k] > localMax) localMax = skyline[k];
+      // Bulle plus large que le bocal : on la pose à plat au-dessus du tas.
+      if (span >= w) {
+        final base = skyline.reduce(math.max);
+        for (var k = 0; k < w; k++) {
+          skyline[k] = base + size;
+        }
+        placed.add(_Placed(data: bubble, x: 0, yFromBottom: base, size: size));
+        continue;
       }
-      final newTop = localMax + size;
-      for (var k = startX; k < startX + span; k++) {
+
+      // Comportement « liquide » : on cherche la position dont la base est la
+      // plus basse (remplit le creux le plus profond avant de monter). À base
+      // égale, on privilégie le centre pour former un tas naturel.
+      final maxStart = w - span;
+      var bestBase = double.infinity;
+      var bestX = 0;
+      var bestCenterDist = double.infinity;
+
+      for (var x = 0; x <= maxStart; x++) {
+        var base = 0.0;
+        for (var k = x; k < x + span; k++) {
+          if (skyline[k] > base) base = skyline[k];
+        }
+        final centerDist = (x + span / 2 - center).abs();
+        if (base < bestBase - 0.5 ||
+            (base <= bestBase + 0.5 && centerDist < bestCenterDist)) {
+          bestBase = base;
+          bestX = x;
+          bestCenterDist = centerDist;
+        }
+      }
+
+      final newTop = bestBase + size;
+      for (var k = bestX; k < bestX + span; k++) {
         skyline[k] = newTop;
       }
       placed.add(_Placed(
         data: bubble,
-        x: startX.toDouble(),
-        yFromBottom: localMax,
+        x: bestX.toDouble(),
+        yFromBottom: bestBase,
         size: size,
       ));
     }
