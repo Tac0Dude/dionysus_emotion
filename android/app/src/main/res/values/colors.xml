@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="widget_background">#FAF7F2</color>
+    <color name="widget_primary">#6B9E82</color>
+    <color name="widget_text_primary">#1F1F1F</color>
+    <color name="widget_text_secondary">#7C7A6F</color>
+
+    <!-- Quadrants (design system) -->
+    <color name="quadrant_agreable_controle">#C8E6D0</color>
+    <color name="quadrant_agreable_depasse">#F5DDD0</color>
+    <color name="quadrant_difficile_controle">#DDD4ED</color>
+    <color name="quadrant_difficile_depasse">#C8D8E8</color>
+</resources>

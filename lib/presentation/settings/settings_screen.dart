@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:home_widget/home_widget.dart';
 
 import '../../data/providers.dart';
 import '../../domain/entities/parent.dart';
@@ -57,6 +58,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       (s) => s.id == id,
       orElse: () => _stages.first,
     );
+  }
+
+  Future<void> _installWidget() async {
+    final supported = await HomeWidget.isRequestPinWidgetSupported();
+    if (supported == true) {
+      await HomeWidget.requestPinWidget(
+        qualifiedAndroidName:
+            'ch.heg.dionysus.emotion.dionysus_emotion.widget.EmotionWidgetProvider',
+      );
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Ajoute le widget Dionysus depuis l\'écran d\'accueil de ton téléphone '
+            '(appui long → Widgets).',
+          ),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   void _comingSoon() {
@@ -206,7 +227,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _SettingsCard(
             icon: Icons.phone_android_outlined,
             title: 'Installer le widget',
-            onTap: _comingSoon,
+            onTap: _installWidget,
           ),
           const SizedBox(height: 22),
           const _SectionTitle('Mon profil'),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:home_widget/home_widget.dart';
 
 import 'data/providers.dart';
 import 'presentation/entry/screens/quadrant_selection_screen.dart';
@@ -8,8 +9,11 @@ import 'presentation/onboarding/onboarding_flow.dart';
 import 'presentation/security/lock_gate.dart';
 import 'presentation/theme/app_colors.dart';
 import 'presentation/theme/app_theme.dart';
+import 'widget/widget_callback.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  HomeWidget.registerInteractivityCallback(widgetBackgroundCallback);
   runApp(const ProviderScope(child: DionysusApp()));
 }
 

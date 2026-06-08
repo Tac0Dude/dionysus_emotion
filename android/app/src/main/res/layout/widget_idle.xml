@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/widget_idle_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="@drawable/widget_background"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/idle_last"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/widget_text_primary"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        tools:ignore="HardcodedText" />
+
+    <!-- Le "+" clignote doucement : ViewFlipper auto-animé alternant un "+"
+         vif et un "+" atténué, avec fondu. Supporté nativement par les widgets,
+         sans réveil périodique. -->
+    <ViewFlipper
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="12dp"
+        android:autoStart="true"
+        android:flipInterval="1100"
+        android:inAnimation="@anim/widget_fade_in"
+        android:outAnimation="@anim/widget_fade_out">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="+"
+            android:textColor="@color/widget_primary"
+            android:textSize="60sp"
+            android:gravity="center"
+            tools:ignore="HardcodedText" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="+"
+            android:textColor="@color/widget_primary"
+            android:textSize="60sp"
+            android:alpha="0.25"
+            android:gravity="center"
+            tools:ignore="HardcodedText" />
+    </ViewFlipper>
+
+    <TextView
+        android:id="@+id/idle_prompt"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Et maintenant,\ncomment tu te sens ?"
+        android:textColor="@color/widget_text_secondary"
+        android:textSize="15sp"
+        android:gravity="center"
+        tools:ignore="HardcodedText" />
+
+</LinearLayout>

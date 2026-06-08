@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -36,7 +38,8 @@ class HistoryScreen extends ConsumerStatefulWidget {
   ConsumerState<HistoryScreen> createState() => _HistoryScreenState();
 }
 
-class _HistoryScreenState extends ConsumerState<HistoryScreen> {
+class _HistoryScreenState extends ConsumerState<HistoryScreen>
+    with WidgetsBindingObserver {
   HistoryPeriod _period = HistoryPeriod.week;
   bool _loading = true;
   List<Entry> _entries = const [];
@@ -44,10 +47,31 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   Map<int, Quadrant> _quadrants = const {};
   Map<int, String> _quadrantLabelByEmotion = const {};
 
+  StreamSubscription<List<Entry>>? _entriesSub;
+  int? _parentId;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
+  }
+
+  @override
+  void dispose() {
+    _entriesSub?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Les saisies faites depuis le widget passent par une autre connexion SQLite
+    // et ne notifient pas le stream Drift de l'app. On re-souscrit au retour au
+    // premier plan pour relancer la requête et récupérer ces saisies.
+    if (state == AppLifecycleState.resumed && _parentId != null) {
+      _subscribeEntries();
+    }
   }
 
   Future<void> _load() async {
@@ -61,18 +85,30 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final refRepo = ref.read(referenceRepositoryProvider);
     final emotionsList = await refRepo.getAllEmotions();
     final quadrants = await refRepo.getQuadrants();
-    final entryRepo = ref.read(entryRepositoryProvider);
 
-    entryRepo.watchAllForParent(parent.id).listen((entries) {
+    _parentId = parent.id;
+    _emotions = {for (final e in emotionsList) e.id: e};
+    _quadrants = {for (final q in quadrants) q.id: q};
+    _quadrantLabelByEmotion = {
+      for (final e in emotionsList)
+        e.id: _quadrants[e.quadrantId]?.label ?? ''
+    };
+    _subscribeEntries();
+  }
+
+  void _subscribeEntries() {
+    final parentId = _parentId;
+    if (parentId == null) return;
+    // Annule l'ancienne souscription et relance la requête (re-listen sur un
+    // stream Drift ré-exécute la requête → données fraîches du fichier SQLite).
+    _entriesSub?.cancel();
+    _entriesSub = ref
+        .read(entryRepositoryProvider)
+        .watchAllForParent(parentId)
+        .listen((entries) {
       if (!mounted) return;
       setState(() {
         _entries = entries;
-        _emotions = {for (final e in emotionsList) e.id: e};
-        _quadrants = {for (final q in quadrants) q.id: q};
-        _quadrantLabelByEmotion = {
-          for (final e in emotionsList)
-            e.id: _quadrants[e.quadrantId]?.label ?? ''
-        };
         _loading = false;
       });
     });

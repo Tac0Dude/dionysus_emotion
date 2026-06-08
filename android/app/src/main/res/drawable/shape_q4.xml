@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Difficile et dépassé·e : rectangle arrondi -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <path
+        android:fillColor="@color/quadrant_difficile_depasse"
+        android:pathData="M48,8 L52,8 Q92,8 92,48 L92,52 Q92,92 52,92 L48,92 Q8,92 8,52 L8,48 Q8,8 48,8 Z" />
+</vector>

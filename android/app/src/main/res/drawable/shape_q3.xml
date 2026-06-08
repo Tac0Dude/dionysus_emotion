@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Difficile mais en contrôle : carré arrondi -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <path
+        android:fillColor="@color/quadrant_difficile_controle"
+        android:pathData="M36,8 L64,8 Q92,8 92,36 L92,64 Q92,92 64,92 L36,92 Q8,92 8,64 L8,36 Q8,8 36,8 Z" />
+</vector>
