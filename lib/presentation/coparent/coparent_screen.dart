@@ -359,7 +359,7 @@ class _PairedViewState extends ConsumerState<_PairedView> {
         title: const Text('Arrêter le partage ?'),
         content: const Text(
           'Ton co-parent n’aura plus accès à tes émotions, et tu n’auras plus '
-          'accès aux siennes. Tu pourras vous ré-appairer plus tard.',
+          'accès aux siennes. Vous pourrez vous ré-appairer plus tard.',
         ),
         actions: [
           TextButton(
@@ -431,7 +431,7 @@ class _PairedViewState extends ConsumerState<_PairedView> {
                   TextButton.icon(
                     onPressed: _confirmUnlink,
                     icon: const Icon(Icons.link_off, size: 18),
-                    label: const Text('Rompre'),
+                    label: const Text('Arrêter le partage'),
                     style: TextButton.styleFrom(
                       foregroundColor: AppColors.textSecondary,
                     ),
