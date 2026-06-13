@@ -3,6 +3,58 @@ import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
 import '../quadrant_visuals.dart';
 
+/// Construit la silhouette (Path) d'un quadrant pour une taille donnée, alignée
+/// sur le rendu rempli de [QuadrantShapeBox]. Utilisé pour tracer des contours
+/// (échos flottants) autour des formes.
+Path quadrantShapePath(QuadrantShape shape, Size size) {
+  final rect = Offset.zero & size;
+  switch (shape) {
+    case QuadrantShape.circle:
+      return Path()..addOval(rect);
+    case QuadrantShape.roundedSquare:
+      return Path()
+        ..addRRect(
+          RRect.fromRectAndRadius(
+            rect,
+            Radius.circular(size.shortestSide * 0.26),
+          ),
+        );
+    case QuadrantShape.roundedRectangle:
+      // Deux pilules empilées (cf. _StackedPills).
+      final pillHeight = size.height * 0.54;
+      final top = RRect.fromRectAndRadius(
+        Rect.fromLTWH(0, 0, size.width, pillHeight),
+        Radius.circular(pillHeight / 2),
+      );
+      final bottom = RRect.fromRectAndRadius(
+        Rect.fromLTWH(0, size.height - pillHeight, size.width, pillHeight),
+        Radius.circular(pillHeight / 2),
+      );
+      return Path.combine(
+        PathOperation.union,
+        Path()..addRRect(top),
+        Path()..addRRect(bottom),
+      );
+    case QuadrantShape.organic:
+      // Union des cinq lobes (cf. _OrganicShapePainter).
+      final r = size.shortestSide * 0.30;
+      final d = r * 0.5;
+      final cx = size.width / 2;
+      final cy = size.height / 2;
+      Path lobe(double ox, double oy, double radius) => Path()
+        ..addOval(Rect.fromCircle(center: Offset(cx + ox, cy + oy), radius: radius));
+      var p = lobe(-d, -d, r * 1.05);
+      for (final o in const [[1.0, -1.0], [-1.0, 1.0], [1.0, 1.0]]) {
+        p = Path.combine(
+          PathOperation.union,
+          p,
+          lobe(o[0] * d, o[1] * d, r * 1.05),
+        );
+      }
+      return Path.combine(PathOperation.union, p, lobe(0, 0, r * 1.2));
+  }
+}
+
 class QuadrantTile extends StatelessWidget {
   final QuadrantVisual visual;
   final VoidCallback onTap;

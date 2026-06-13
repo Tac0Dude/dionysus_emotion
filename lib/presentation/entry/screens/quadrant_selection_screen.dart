@@ -6,7 +6,7 @@ import '../../../domain/entities/quadrant.dart';
 import '../../shell/bottom_nav.dart';
 import '../../theme/app_colors.dart';
 import '../quadrant_visuals.dart';
-import '../widgets/quadrant_tile.dart';
+import '../widgets/animated_quadrant_tile.dart';
 import 'emotion_selection_screen.dart';
 
 class QuadrantSelectionScreen extends ConsumerStatefulWidget {
@@ -102,18 +102,21 @@ class _QuadrantSelectionScreenState
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          for (final row in layout) ...[
+          for (var r = 0; r < layout.length; r++) ...[
             Row(
               children: [
-                for (final label in row) ...[
+                for (var c = 0; c < layout[r].length; c++) ...[
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.all(8),
-                      child: _hasLabel(label)
-                          ? QuadrantTile(
-                              visual: visualFor(label),
-                              onTap: () =>
-                                  _openEmotionScreen(_quadrantByLabel(label)),
+                      child: _hasLabel(layout[r][c])
+                          ? AnimatedQuadrantTile(
+                              visual: visualFor(layout[r][c]),
+                              // Phase décalée par tuile pour désynchroniser.
+                              phase: (r * 2 + c) / 4,
+                              onTap: () => _openEmotionScreen(
+                                _quadrantByLabel(layout[r][c]),
+                              ),
                             )
                           : const SizedBox.shrink(),
                     ),
