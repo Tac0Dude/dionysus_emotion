@@ -98,6 +98,39 @@ class EmotionWidgetProvider : AppWidgetProvider() {
 
         private val INTENSITY_LABELS =
             listOf("Légère", "Faible", "Modérée", "Forte", "Intense")
+
+        /**
+         * Pousse la dernière saisie dans l'état du widget puis le redessine.
+         *
+         * Point d'entrée unique partagé par la sauvegarde via le widget et par la
+         * synchronisation déclenchée par l'app (MethodChannel) : le widget reflète
+         * ainsi la dernière saisie quelle que soit son origine. Le [timestamp]
+         * (date réelle de la saisie) pilote le seuil repos → invitation, ce qui
+         * laisse le widget basculer correctement quand la saisie devient ancienne.
+         */
+        fun syncLastEntry(
+            context: Context,
+            quadrant: Int,
+            emotion: String,
+            intensity: Int,
+            timestamp: Long,
+        ) {
+            val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(timestamp))
+            val intensityLabel = INTENSITY_LABELS.getOrNull(intensity - 1) ?: ""
+            prefs.edit()
+                .putInt(KEY_QUADRANT, quadrant)
+                .putString(KEY_EMOTION, emotion)
+                .putString(KEY_IDLE_TEXT, "$emotion · $time")
+                .putString(KEY_CONFIRM_META, "$intensityLabel · $time")
+                .putLong(KEY_LAST_TS, timestamp)
+                .putInt(KEY_STEP, STEP_REST)
+                .apply()
+
+            val provider = EmotionWidgetProvider()
+            provider.scheduleStaleCheck(context, timestamp + STALE_AFTER_MS)
+            provider.updateAll(context)
+        }
     }
 
     override fun onUpdate(
@@ -152,17 +185,11 @@ class EmotionWidgetProvider : AppWidgetProvider() {
                 val q = prefs.getInt(KEY_QUADRANT, 1)
                 val emotion = prefs.getString(KEY_EMOTION, "") ?: ""
                 val intensity = uri.getQueryParameter("i")?.toIntOrNull() ?: return
-                val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
-                val intensityLabel = INTENSITY_LABELS.getOrNull(intensity - 1) ?: ""
-                editor
-                    .putString(KEY_IDLE_TEXT, "$emotion · $time")
-                    .putString(KEY_CONFIRM_META, "$intensityLabel · $time")
-                    .putLong(KEY_LAST_TS, System.currentTimeMillis())
-                    .putInt(KEY_STEP, STEP_REST)
-                editor.apply()
                 saveEntryInBackground(context, q, emotion, intensity)
-                scheduleStaleCheck(context, System.currentTimeMillis() + STALE_AFTER_MS)
-                updateAll(context)
+                // Le rendu de l'état de repos + l'écriture des prefs + la
+                // planification du passage en invitation sont mutualisés avec la
+                // synchronisation déclenchée par l'app (cf. syncLastEntry).
+                syncLastEntry(context, q, emotion, intensity, System.currentTimeMillis())
                 return
             }
 

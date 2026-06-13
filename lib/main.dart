@@ -10,6 +10,7 @@ import 'presentation/security/lock_gate.dart';
 import 'presentation/theme/app_colors.dart';
 import 'presentation/theme/app_theme.dart';
 import 'widget/widget_callback.dart';
+import 'widget/widget_sync.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,11 +39,33 @@ class DionysusApp extends StatelessWidget {
   }
 }
 
-class _AppRoot extends ConsumerWidget {
+class _AppRoot extends ConsumerStatefulWidget {
   const _AppRoot();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_AppRoot> createState() => _AppRootState();
+}
+
+class _AppRootState extends ConsumerState<_AppRoot> {
+  bool _widgetSynced = false;
+
+  /// Aligne le widget natif sur la dernière saisie de la base au lancement,
+  /// afin de corriger un état périmé (ex. invitation affichée alors qu'une
+  /// saisie récente existe). Déclenché une seule fois, après le premier frame.
+  void _syncWidgetOnce() {
+    if (_widgetSynced) return;
+    _widgetSynced = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetSync.refreshFromDb(
+        parentRepo: ref.read(parentRepositoryProvider),
+        entryRepo: ref.read(entryRepositoryProvider),
+        referenceRepo: ref.read(referenceRepositoryProvider),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final parentStream = ref.watch(currentParentProvider);
 
     return parentStream.when(
@@ -50,6 +73,7 @@ class _AppRoot extends ConsumerWidget {
         if (parent == null) {
           return const OnboardingFlow();
         }
+        _syncWidgetOnce();
         return const QuadrantSelectionScreen();
       },
       loading: () => const Scaffold(

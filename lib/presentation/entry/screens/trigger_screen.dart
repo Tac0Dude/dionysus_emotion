@@ -8,6 +8,7 @@ import '../../../domain/entities/activity.dart';
 import '../../../domain/entities/emotion.dart';
 import '../../../domain/entities/location.dart';
 import '../../../domain/entities/quadrant.dart';
+import '../../../widget/widget_sync.dart';
 import '../../shell/bottom_nav.dart';
 import '../../theme/app_colors.dart';
 import '../sentence_provider.dart';
@@ -99,6 +100,14 @@ class _TriggerScreenState extends ConsumerState<TriggerScreen> {
       );
       return;
     }
+
+    // Pousse cette saisie vers le widget natif pour qu'il reflète aussi les
+    // saisies faites dans l'app (et reste en mode repos plutôt qu'invitation).
+    await WidgetSync.refreshFromDb(
+      parentRepo: ref.read(parentRepositoryProvider),
+      entryRepo: ref.read(entryRepositoryProvider),
+      referenceRepo: ref.read(referenceRepositoryProvider),
+    );
 
     final sentences = await ref.read(sentencesProvider.future);
     if (!mounted) return;

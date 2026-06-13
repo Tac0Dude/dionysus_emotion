@@ -12,6 +12,9 @@ abstract class EntryRepository {
 
   Future<Entry?> getById(int id);
 
+  /// Dernière saisie (toutes dates) du parent, ou null s'il n'en a aucune.
+  Future<Entry?> getLatestForParent(int parentId);
+
   Stream<List<Entry>> watchAllForParent(int parentId);
 
   Future<List<Entry>> getForDay({

@@ -39,6 +39,16 @@ class EntryRepositoryImpl implements EntryRepository {
   }
 
   @override
+  Future<Entry?> getLatestForParent(int parentId) async {
+    final row = await (_db.select(_db.entries)
+          ..where((e) => e.parentId.equals(parentId))
+          ..orderBy([(e) => OrderingTerm.desc(e.createdAt)])
+          ..limit(1))
+        .getSingleOrNull();
+    return row?.toDomain();
+  }
+
+  @override
   Stream<List<Entry>> watchAllForParent(int parentId) {
     return (_db.select(_db.entries)
           ..where((e) => e.parentId.equals(parentId))
