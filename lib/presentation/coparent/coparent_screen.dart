@@ -152,7 +152,7 @@ class _ConsentView extends ConsumerWidget {
             icon: Icons.lock_outline,
             text:
                 'Personne d’autre que ton co-parent appairé n’y a accès. Tu peux '
-                'rompre le partage ou supprimer tes données à tout moment.',
+                'cesser le partage ou supprimer tes données à tout moment.',
           ),
           const SizedBox(height: 28),
           SizedBox(
@@ -356,7 +356,7 @@ class _PairedViewState extends ConsumerState<_PairedView> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Rompre le partage ?'),
+        title: const Text('Arrêter le partage ?'),
         content: const Text(
           'Ton co-parent n’aura plus accès à tes émotions, et tu n’auras plus '
           'accès aux siennes. Tu pourras vous ré-appairer plus tard.',
@@ -368,7 +368,7 @@ class _PairedViewState extends ConsumerState<_PairedView> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Rompre'),
+            child: const Text('Arrêter le partage'),
           ),
         ],
       ),
