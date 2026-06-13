@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'config/supabase_config.dart';
 import 'data/providers.dart';
+import 'domain/entities/entry.dart';
 import 'presentation/entry/screens/quadrant_selection_screen.dart';
 import 'presentation/onboarding/onboarding_flow.dart';
 import 'presentation/security/lock_gate.dart';
@@ -72,7 +75,8 @@ class _AppRoot extends ConsumerStatefulWidget {
 
 class _AppRootState extends ConsumerState<_AppRoot>
     with WidgetsBindingObserver {
-  bool _widgetSynced = false;
+  bool _started = false;
+  StreamSubscription<List<Entry>>? _entriesSub;
 
   @override
   void initState() {
@@ -82,32 +86,44 @@ class _AppRootState extends ConsumerState<_AppRoot>
 
   @override
   void dispose() {
+    _entriesSub?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Au retour au premier plan, on pousse vers le backend les saisies faites
-    // entre-temps (notamment via le widget, sur une autre connexion SQLite).
+    // Les saisies faites via le widget passent par une autre connexion SQLite :
+    // la connexion de l'app ne les « voit » qu'après un markTablesUpdated. On
+    // force donc la relecture au retour au premier plan ; le flux d'entrées
+    // ré-émet alors et déclenche la poussée vers le serveur. Second passage pour
+    // rattraper une écriture widget commitée juste après le resume.
     if (state == AppLifecycleState.resumed) {
-      ref.read(sharedEntrySyncProvider).pushPending();
+      final entryRepo = ref.read(entryRepositoryProvider);
+      entryRepo.refreshEntryStreams();
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) entryRepo.refreshEntryStreams();
+      });
     }
   }
 
-  /// Aligne le widget natif sur la dernière saisie de la base au lancement, et
-  /// pousse les saisies vers le backend partagé. Déclenché une seule fois, après
-  /// le premier frame (quand un parent existe).
-  void _syncOnce() {
-    if (_widgetSynced) return;
-    _widgetSynced = true;
+  /// Au lancement (parent présent) : aligne le widget natif sur la base et met
+  /// en place une poussée vers le serveur à chaque changement local — y compris
+  /// les saisies widget, dès qu'elles deviennent visibles côté app.
+  void _startSync(int parentId) {
+    if (_started) return;
+    _started = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       WidgetSync.refreshFromDb(
         parentRepo: ref.read(parentRepositoryProvider),
         entryRepo: ref.read(entryRepositoryProvider),
         referenceRepo: ref.read(referenceRepositoryProvider),
       );
-      ref.read(sharedEntrySyncProvider).pushPending();
+      final sync = ref.read(sharedEntrySyncProvider);
+      _entriesSub = ref
+          .read(entryRepositoryProvider)
+          .watchAllForParent(parentId)
+          .listen((_) => sync.pushPending());
     });
   }
 
@@ -120,7 +136,7 @@ class _AppRootState extends ConsumerState<_AppRoot>
         if (parent == null) {
           return const OnboardingFlow();
         }
-        _syncOnce();
+        _startSync(parent.id);
         return const QuadrantSelectionScreen();
       },
       loading: () => const Scaffold(
