@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../entry/quadrant_visuals.dart';
+import '../../entry/widgets/quadrant_tile.dart';
 import '../../theme/app_colors.dart';
 
 class EmotionBubbleData {
@@ -28,18 +29,27 @@ class EmotionBubbleData {
   });
 }
 
+/// Taille (côté du carré englobant) des bulles selon l'intensité (1 à 5).
+/// Les quatre formes s'inscrivent dans un carré de cette taille ; seule
+/// l'intensité fait varier la taille.
 const _bubbleSizes = <double>[40, 52, 64, 78, 92];
+
+/// Petit espacement réservé autour de chaque bulle dans le packing, pour
+/// éviter qu'elles soient collées.
+const _bubbleGap = 0.5;
 
 class _Placed {
   final EmotionBubbleData data;
   final double x;
   final double yFromBottom;
-  final double size;
+  final double width;
+  final double height;
   const _Placed({
     required this.data,
     required this.x,
     required this.yFromBottom,
-    required this.size,
+    required this.width,
+    required this.height,
   });
 }
 
@@ -183,7 +193,7 @@ class _JarState extends State<Jar> with SingleTickerProviderStateMixin {
                       final pileHeight = placed.isEmpty
                           ? 0.0
                           : placed
-                              .map((p) => p.yFromBottom + p.size)
+                              .map((p) => p.yFromBottom + p.height)
                               .reduce(math.max);
                       final stackHeight = math.max(pileHeight, 180.0);
                       return SizedBox(
@@ -213,10 +223,10 @@ class _JarState extends State<Jar> with SingleTickerProviderStateMixin {
   /// Bulle positionnée. La bulle en cours de chute interpole sa hauteur depuis
   /// le haut du bocal jusqu'à sa place, avec un rebond (effet « tombe en place »).
   Widget _positionedBubble(_Placed p, double stackHeight) {
-    final targetTop = stackHeight - p.yFromBottom - p.size;
+    final targetTop = stackHeight - p.yFromBottom - p.height;
     var top = targetTop;
     if (p.data.id == _droppingId) {
-      final startTop = -p.size - 8.0;
+      final startTop = -p.height - 8.0;
       final dropT = ((_drop.value - 0.12) / 0.78).clamp(0.0, 1.0);
       top = startTop +
           (targetTop - startTop) * Curves.bounceOut.transform(dropT);
@@ -225,8 +235,8 @@ class _JarState extends State<Jar> with SingleTickerProviderStateMixin {
       key: ValueKey(p.data.id),
       left: p.x,
       top: top,
-      width: p.size,
-      height: p.size,
+      width: p.width,
+      height: p.height,
       child: _Bubble(placed: p, onTap: () => widget.onTap(p.data)),
     );
   }
@@ -268,30 +278,43 @@ List<_Placed> _pack(List<EmotionBubbleData> bubbles, double width) {
       return a.id.compareTo(b.id);
     });
 
-  final w = width.floor();
+  final jarWidth = width.floor();
   // skyline[k] = hauteur déjà remplie à la colonne k (depuis le bas).
-  final skyline = List<double>.filled(w, 0.0);
+  final skyline = List<double>.filled(jarWidth, 0.0);
   final placed = <_Placed>[];
-  final center = w / 2;
+  final center = jarWidth / 2;
 
   for (final bubble in sorted) {
-    final size = _bubbleSizes[bubble.intensity - 1];
-    final span = size.ceil();
+    final size = math.min(
+      _bubbleSizes[bubble.intensity - 1],
+      jarWidth.toDouble(),
+    );
+    // On réserve un peu plus que la bulle (footprint) et on la dessine centrée
+    // dedans : la marge `inset` autour produit un petit écart entre voisines.
+    final footprint = math.min(size + _bubbleGap, jarWidth.toDouble());
+    final inset = (footprint - size) / 2;
+    final span = footprint.ceil();
 
-    // Bulle plus large que le bocal : on la pose à plat au-dessus du tas.
-    if (span >= w) {
+    // Bulle aussi large que le bocal : on la pose à plat au-dessus du tas.
+    if (span >= jarWidth) {
       final base = skyline.reduce(math.max);
-      for (var k = 0; k < w; k++) {
-        skyline[k] = base + size;
+      for (var k = 0; k < jarWidth; k++) {
+        skyline[k] = base + footprint;
       }
-      placed.add(_Placed(data: bubble, x: 0, yFromBottom: base, size: size));
+      placed.add(_Placed(
+        data: bubble,
+        x: inset,
+        yFromBottom: base + inset,
+        width: math.min(size, jarWidth.toDouble()),
+        height: size,
+      ));
       continue;
     }
 
     // Comportement « liquide » : on cherche la position dont la base est la
     // plus basse (remplit le creux le plus profond avant de monter). À base
     // égale, on privilégie le centre pour former un tas naturel.
-    final maxStart = w - span;
+    final maxStart = jarWidth - span;
     var bestBase = double.infinity;
     var bestX = 0;
     var bestCenterDist = double.infinity;
@@ -310,15 +333,16 @@ List<_Placed> _pack(List<EmotionBubbleData> bubbles, double width) {
       }
     }
 
-    final newTop = bestBase + size;
+    final newTop = bestBase + footprint;
     for (var k = bestX; k < bestX + span; k++) {
       skyline[k] = newTop;
     }
     placed.add(_Placed(
       data: bubble,
-      x: bestX.toDouble(),
-      yFromBottom: bestBase,
-      size: size,
+      x: bestX + inset,
+      yFromBottom: bestBase + inset,
+      width: size,
+      height: size,
     ));
   }
   return placed;
@@ -380,54 +404,113 @@ class _BubbleState extends State<_Bubble>
 
   Widget _buildBubble(BuildContext context) {
     final data = widget.placed.data;
-    final size = widget.placed.size;
-    final border = _shapeBorder(data.shape, size);
+    final width = widget.placed.width;
+    final height = widget.placed.height;
+    final label = Center(
+      child: Padding(
+        padding: EdgeInsets.all(height * 0.12),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            data.emotionName,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // Le blob organique est dessiné par un painter (même silhouette que les
+    // tuiles de quadrant) ; il n'a pas de bordure exploitable par InkWell.
+    if (data.shape == QuadrantShape.organic) {
+      return GestureDetector(
+        onTap: widget.onTap,
+        behavior: HitTestBehavior.opaque,
+        child: SizedBox(
+          width: width,
+          height: height,
+          child: QuadrantShapeBox(
+            shape: QuadrantShape.organic,
+            color: data.color,
+            child: label,
+          ),
+        ),
+      );
+    }
+
+    // Quadrant bleu (Difficile et dépassé·e) : deux pilules empilées dans le
+    // carré, qui se recouvrent légèrement au centre pour garder le texte lisible.
+    if (data.shape == QuadrantShape.roundedRectangle) {
+      final pillHeight = height * 0.54;
+      return GestureDetector(
+        onTap: widget.onTap,
+        behavior: HitTestBehavior.opaque,
+        child: SizedBox(
+          width: width,
+          height: height,
+          child: Stack(
+            children: [
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: pillHeight,
+                child: _pill(data.color, pillHeight),
+              ),
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: pillHeight,
+                child: _pill(data.color, pillHeight),
+              ),
+              Positioned.fill(child: label),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final border = _shapeBorder(data.shape, width, height);
     return Material(
       color: data.color,
       shape: border,
       child: InkWell(
         onTap: widget.onTap,
         customBorder: border,
-        child: SizedBox(
-          width: size,
-          height: size,
-          child: Center(
-            child: Padding(
-              padding: EdgeInsets.all(size * 0.12),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  data.emotionName,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
+        child: SizedBox(width: width, height: height, child: label),
       ),
     );
   }
 
-  ShapeBorder _shapeBorder(QuadrantShape shape, double size) {
+  Widget _pill(Color color, double height) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(height / 2),
+      ),
+    );
+  }
+
+  // Cercle et carré arrondi (les seules formes passant par ce rendu Material).
+  // Le blob organique et les pilules bleues ont leur propre rendu plus haut.
+  ShapeBorder _shapeBorder(QuadrantShape shape, double width, double height) {
+    final shortest = math.min(width, height);
     switch (shape) {
       case QuadrantShape.circle:
         return const CircleBorder();
       case QuadrantShape.roundedSquare:
         return RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(size * 0.26),
+          borderRadius: BorderRadius.circular(shortest * 0.28),
         );
       case QuadrantShape.roundedRectangle:
-        return RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(size * 0.42),
-        );
       case QuadrantShape.organic:
         return RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(size * 0.36),
+          borderRadius: BorderRadius.circular(shortest * 0.3),
         );
     }
   }

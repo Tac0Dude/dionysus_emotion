@@ -101,19 +101,64 @@ class QuadrantShapeBox extends StatelessWidget {
           child: child,
         );
       case QuadrantShape.roundedRectangle:
-        return DecoratedBox(
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(56),
-          ),
-          child: child,
-        );
+        // Quadrant bleu (Difficile et dépassé·e) : deux pilules empilées,
+        // identiques au rendu du bocal de l'historique.
+        return _StackedPills(color: color, child: child);
       case QuadrantShape.organic:
         return CustomPaint(
           painter: _OrganicShapePainter(color: color),
           child: child,
         );
     }
+  }
+}
+
+/// Deux pilules (capsules) empilées, qui se recouvrent légèrement au centre
+/// pour garder le contenu lisible. Silhouette du quadrant « Difficile et
+/// dépassé·e », alignée sur le bocal de l'historique.
+class _StackedPills extends StatelessWidget {
+  final Color color;
+  final Widget child;
+
+  const _StackedPills({required this.color, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final box =
+            constraints.hasBoundedHeight ? constraints.maxHeight : constraints.maxWidth;
+        final pillHeight = box * 0.54;
+        return Stack(
+          children: [
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: pillHeight,
+              child: _pill(pillHeight),
+            ),
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: pillHeight,
+              child: _pill(pillHeight),
+            ),
+            Positioned.fill(child: child),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _pill(double height) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(height / 2),
+      ),
+    );
   }
 }
 
@@ -124,14 +169,17 @@ class _OrganicShapePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = color..style = PaintingStyle.fill;
-    final r = size.shortestSide * 0.32;
+    final r = size.shortestSide * 0.30;
     final cx = size.width / 2;
     final cy = size.height / 2;
-    canvas.drawCircle(Offset(cx - r * 0.55, cy - r * 0.25), r * 1.05, paint);
-    canvas.drawCircle(Offset(cx + r * 0.55, cy - r * 0.25), r * 1.05, paint);
-    canvas.drawCircle(Offset(cx - r * 0.55, cy + r * 0.55), r * 1.05, paint);
-    canvas.drawCircle(Offset(cx + r * 0.55, cy + r * 0.55), r * 1.05, paint);
-    canvas.drawCircle(Offset(cx, cy + r * 0.1), r * 1.15, paint);
+    // Quatre lobes symétriques + un cœur central : silhouette équilibrée,
+    // inscrite dans un carré (largeur ≈ hauteur).
+    final d = r * 0.5;
+    canvas.drawCircle(Offset(cx - d, cy - d), r * 1.05, paint);
+    canvas.drawCircle(Offset(cx + d, cy - d), r * 1.05, paint);
+    canvas.drawCircle(Offset(cx - d, cy + d), r * 1.05, paint);
+    canvas.drawCircle(Offset(cx + d, cy + d), r * 1.05, paint);
+    canvas.drawCircle(Offset(cx, cy), r * 1.2, paint);
   }
 
   @override

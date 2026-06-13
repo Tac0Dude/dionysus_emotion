@@ -1,11 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Difficile et dépassé·e : rectangle arrondi -->
+<!-- Difficile et dépassé·e : deux pilules empilées (mêmes formes que l'app) -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="120dp"
     android:height="120dp"
     android:viewportWidth="100"
     android:viewportHeight="100">
+    <!-- Pilule du haut -->
     <path
         android:fillColor="@color/quadrant_difficile_depasse"
-        android:pathData="M48,8 L52,8 Q92,8 92,48 L92,52 Q92,92 52,92 L48,92 Q8,92 8,52 L8,48 Q8,8 48,8 Z" />
+        android:pathData="M31,4 L69,4 Q96,4 96,31 Q96,58 69,58 L31,58 Q4,58 4,31 Q4,4 31,4 Z" />
+    <!-- Pilule du bas (recouvre légèrement la première au centre) -->
+    <path
+        android:fillColor="@color/quadrant_difficile_depasse"
+        android:pathData="M31,42 L69,42 Q96,42 96,69 Q96,96 69,96 L31,96 Q4,96 4,69 Q4,42 31,42 Z" />
 </vector>
