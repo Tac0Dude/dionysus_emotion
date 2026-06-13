@@ -205,27 +205,22 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
     final now = DateTime.now();
     final start = DateTime(now.year, now.month, 1);
     final end = DateTime(now.year, now.month + 1, 1);
-    final byDay = <DateTime, Map<int, int>>{};
+    // Chaque jour prend la couleur de sa dernière saisie (createdAt le plus
+    // récent), pas du quadrant majoritaire.
+    final latestByDay = <DateTime, Entry>{};
     for (final e in _entries) {
       if (e.createdAt.isBefore(start) || !e.createdAt.isBefore(end)) continue;
-      final emotion = _emotions[e.emotionId];
-      if (emotion == null) continue;
+      if (_emotions[e.emotionId] == null) continue;
       final dayKey = _normalize(e.createdAt);
-      final perQuadrant = byDay.putIfAbsent(dayKey, () => <int, int>{});
-      perQuadrant[emotion.quadrantId] =
-          (perQuadrant[emotion.quadrantId] ?? 0) + 1;
+      final current = latestByDay[dayKey];
+      if (current == null || e.createdAt.isAfter(current.createdAt)) {
+        latestByDay[dayKey] = e;
+      }
     }
     final result = <DateTime, Color>{};
-    byDay.forEach((day, counts) {
-      var bestId = counts.keys.first;
-      var bestCount = counts[bestId]!;
-      counts.forEach((id, c) {
-        if (c > bestCount) {
-          bestCount = c;
-          bestId = id;
-        }
-      });
-      final quadrantLabel = _quadrants[bestId]?.label ?? '';
+    latestByDay.forEach((day, entry) {
+      final quadrantId = _emotions[entry.emotionId]!.quadrantId;
+      final quadrantLabel = _quadrants[quadrantId]?.label ?? '';
       result[day] = visualFor(quadrantLabel).color;
     });
     return result;

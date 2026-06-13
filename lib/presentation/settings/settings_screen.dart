@@ -5,6 +5,7 @@ import 'package:home_widget/home_widget.dart';
 import '../../data/providers.dart';
 import '../../domain/entities/parent.dart';
 import '../../domain/entities/stage.dart';
+import '../coparent/coparent_screen.dart';
 import '../onboarding/onboarding_state.dart';
 import '../onboarding/widgets/cream_text_field.dart';
 import '../security/lock_controller.dart';
@@ -78,15 +79,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
       );
     }
-  }
-
-  void _comingSoon() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Cette fonctionnalité arrivera bientôt.'),
-        duration: Duration(seconds: 2),
-      ),
-    );
   }
 
   Future<void> _editFirstName(Parent parent) async {
@@ -180,6 +172,42 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+  Future<void> _deleteSharedData(Parent parent) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Supprimer mes données du serveur ?'),
+        content: const Text(
+          'Toutes tes saisies partagées seront effacées du serveur et le partage '
+          'avec ton co-parent sera rompu. Tes données locales sur cet appareil '
+          'sont conservées.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await ref.read(coparentRepositoryProvider).deleteMyData();
+    // Réinitialise le consentement : plus rien n'est repoussé tant que le parent
+    // n'a pas re-consenti.
+    await ref.read(parentRepositoryProvider).updateSharingConsent(
+          parentId: parent.id,
+          consent: false,
+        );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Données supprimées du serveur.')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final parentAsync = ref.watch(currentParentProvider);
@@ -256,9 +284,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const _SectionTitle('Co-parent'),
           _SettingsCard(
             icon: Icons.group_add_outlined,
-            title: 'Ajouter un co-parent',
+            title: 'Co-parent',
             subtitle: 'Partager son suivi émotionnel',
-            onTap: _comingSoon,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const CoparentScreen()),
+            ),
           ),
           const SizedBox(height: 22),
           const _SectionTitle('Confidentialité'),
@@ -281,6 +311,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               );
             },
+          ),
+          const SizedBox(height: 12),
+          _SettingsCard(
+            icon: Icons.delete_outline,
+            title: 'Mes données',
+            subtitle: 'Supprimer mes données partagées du serveur',
+            onTap: () => _deleteSharedData(parent),
           ),
         ],
       ),

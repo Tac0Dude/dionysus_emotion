@@ -66,6 +66,15 @@ class EntryRepositoryImpl implements EntryRepository {
   }
 
   @override
+  Future<List<Entry>> getAllForParent(int parentId) async {
+    final rows = await (_db.select(_db.entries)
+          ..where((e) => e.parentId.equals(parentId))
+          ..orderBy([(e) => OrderingTerm.asc(e.createdAt)]))
+        .get();
+    return rows.map((r) => r.toDomain()).toList();
+  }
+
+  @override
   Future<List<Entry>> getForDay({
     required int parentId,
     required DateTime day,

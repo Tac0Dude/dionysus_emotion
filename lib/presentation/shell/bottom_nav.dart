@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../coparent/coparent_screen.dart';
 import '../entry/screens/quadrant_selection_screen.dart';
 import '../history/history_screen.dart';
 import '../settings/settings_screen.dart';
 import '../theme/app_colors.dart';
 
-enum MainTab { history, entry, settings }
+enum MainTab { history, entry, coparent, settings }
 
 class BottomNav extends StatelessWidget {
   final MainTab currentTab;
@@ -17,6 +18,7 @@ class BottomNav extends StatelessWidget {
     final Widget destination = switch (tab) {
       MainTab.history => const HistoryScreen(),
       MainTab.entry => const QuadrantSelectionScreen(),
+      MainTab.coparent => const CoparentScreen(),
       MainTab.settings => const SettingsScreen(),
     };
     Navigator.of(context).pushAndRemoveUntil(
@@ -41,24 +43,44 @@ class BottomNav extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              _NavItem(
-                icon: Icons.calendar_today_outlined,
-                label: 'Historique',
-                selected: currentTab == MainTab.history,
-                onTap: () => _switchTo(context, MainTab.history),
+              // Groupe gauche : laisse le bouton central parfaitement centré.
+              Expanded(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _NavItem(
+                        icon: Icons.calendar_today_outlined,
+                        label: 'Historique',
+                        selected: currentTab == MainTab.history,
+                        onTap: () => _switchTo(context, MainTab.history),
+                      ),
+                    ),
+                    Expanded(
+                      child: _NavItem(
+                        icon: Icons.group_outlined,
+                        label: 'Co-parent',
+                        selected: currentTab == MainTab.coparent,
+                        onTap: () => _switchTo(context, MainTab.coparent),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               _CenterButton(
                 onTap: () => _switchTo(context, MainTab.entry),
                 active: currentTab == MainTab.entry,
               ),
-              _NavItem(
-                icon: Icons.settings_outlined,
-                label: 'Paramètres',
-                selected: currentTab == MainTab.settings,
-                onTap: () => _switchTo(context, MainTab.settings),
+              // Groupe droit (même largeur que le gauche) : Paramètres centré
+              // dans sa moitié, ce qui garde le bouton + parfaitement au centre.
+              Expanded(
+                child: _NavItem(
+                  icon: Icons.settings_outlined,
+                  label: 'Paramètres',
+                  selected: currentTab == MainTab.settings,
+                  onTap: () => _switchTo(context, MainTab.settings),
+                ),
               ),
             ],
           ),
@@ -88,20 +110,26 @@ class _NavItem extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minWidth: 72, minHeight: 56),
+        // Hauteur min pour la cible tactile ; largeur libre (les items se
+        // partagent l'espace via Expanded), le libellé se réduit si nécessaire.
+        constraints: const BoxConstraints(minHeight: 56),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(icon, size: 24, color: color),
               const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: color,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: color,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                  ),
                 ),
               ),
             ],

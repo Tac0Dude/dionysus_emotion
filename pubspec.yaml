@@ -35,6 +35,12 @@ dependencies:
   # Home screen widget (Android) — interactive emotion entry
   home_widget: ^0.7.0
 
+  # Co-parent sharing (remote backend, anonymous auth, realtime)
+  supabase_flutter: ^2.8.0
+  # QR pairing
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^5.2.3
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

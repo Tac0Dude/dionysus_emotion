@@ -109,6 +109,9 @@ class _TriggerScreenState extends ConsumerState<TriggerScreen> {
       referenceRepo: ref.read(referenceRepositoryProvider),
     );
 
+    // Propage vers le co-parent (best-effort, sans bloquer la navigation).
+    ref.read(sharedEntrySyncProvider).pushPending();
+
     final sentences = await ref.read(sentencesProvider.future);
     if (!mounted) return;
     final sentence =

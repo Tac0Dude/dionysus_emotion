@@ -17,6 +17,9 @@ abstract class EntryRepository {
 
   Stream<List<Entry>> watchAllForParent(int parentId);
 
+  /// Toutes les saisies du parent (lecture ponctuelle), pour la synchronisation.
+  Future<List<Entry>> getAllForParent(int parentId);
+
   /// Force les streams de saisies à relire la base. Nécessaire après une saisie
   /// faite via le widget : elle est écrite par une autre connexion SQLite, qui
   /// ne notifie pas le cache de streams de l'app.

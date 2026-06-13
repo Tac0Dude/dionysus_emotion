@@ -1,6 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Required by local_auth for biometric authentication -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <!-- Required by mobile_scanner to scan a co-parent's pairing QR code -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Co-parent sharing talks to Supabase over the network -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <application
         android:label="dionysus_emotion"
         android:name="${applicationName}"
