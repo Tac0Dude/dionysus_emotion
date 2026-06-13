@@ -11,6 +11,7 @@ class EmotionBubbleData {
   final QuadrantShape shape;
   final Color color;
   final int intensity;
+  final DateTime createdAt;
 
   const EmotionBubbleData({
     required this.id,
@@ -18,6 +19,7 @@ class EmotionBubbleData {
     required this.shape,
     required this.color,
     required this.intensity,
+    required this.createdAt,
   });
 }
 
@@ -139,10 +141,11 @@ class Jar extends StatelessWidget {
   List<_Placed> _pack(List<EmotionBubbleData> bubbles, double width) {
     if (width <= 0 || bubbles.isEmpty) return const [];
 
-    // Les grosses bulles (intensité forte) se tassent au fond en premier ; les
-    // plus petites comblent ensuite les creux. Tri stable pour un rendu figé.
+    // Les émotions les plus anciennes se tassent au fond en premier ; les plus
+    // récentes viennent ensuite par-dessus, comme des dépôts successifs. Tri
+    // stable (id en départage) pour un rendu figé.
     final sorted = [...bubbles]..sort((a, b) {
-        final c = b.intensity.compareTo(a.intensity);
+        final c = a.createdAt.compareTo(b.createdAt);
         if (c != 0) return c;
         return a.id.compareTo(b.id);
       });

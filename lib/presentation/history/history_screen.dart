@@ -165,6 +165,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
             shape: visual.shape,
             color: visual.color,
             intensity: entry.intensity,
+            createdAt: entry.createdAt,
           );
         })
         .whereType<EmotionBubbleData>()
