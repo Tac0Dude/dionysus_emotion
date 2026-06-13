@@ -2,7 +2,7 @@
 -- ----------------------------------------------------------------------------
 -- À exécuter dans le SQL editor du projet Supabase.
 -- Prérequis dashboard : Auth > Providers > activer « Anonymous sign-ins ».
--- Après exécution : Database > Replication > activer Realtime sur `shared_entries`.
+-- (Le Realtime sur `profiles` et `shared_entries` est configuré plus bas.)
 --
 -- Modèle : chaque parent = un utilisateur (auth anonyme). Le partage est limité,
 -- par le RLS, au seul co-parent appairé. On ne stocke qu'un projeté dénormalisé
@@ -140,3 +140,28 @@ create policy shared_entries_select on public.shared_entries
 drop policy if exists shared_entries_write on public.shared_entries;
 create policy shared_entries_write on public.shared_entries
   for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+
+-- ===========================================================================
+-- Realtime
+-- ===========================================================================
+-- `profiles`      : bascule « appairé » en direct des deux côtés.
+-- `shared_entries`: bocal du co-parent en temps réel.
+-- Ajout idempotent à la publication par défaut (la réplication respecte le RLS).
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public' and tablename = 'profiles'
+  ) then
+    alter publication supabase_realtime add table public.profiles;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public' and tablename = 'shared_entries'
+  ) then
+    alter publication supabase_realtime add table public.shared_entries;
+  end if;
+end $$;

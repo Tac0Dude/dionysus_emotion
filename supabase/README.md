@@ -4,10 +4,15 @@
 1. Créer un projet sur https://supabase.com (noter **Project URL** et **anon public key**
    dans Project Settings > API).
 2. **Auth > Providers** : activer **Anonymous sign-ins**.
-3. **SQL Editor** : coller et exécuter [`setup.sql`](./setup.sql).
-4. **Database > Replication** (ou Realtime) : activer Realtime sur la table
-   `public.shared_entries`.
-5. Reporter l'URL et la clé anon dans `lib/config/supabase_config.dart`.
+3. **SQL Editor** : coller et exécuter [`setup.sql`](./setup.sql). Le script
+   active aussi le Realtime sur `profiles` et `shared_entries`.
+4. Reporter l'URL (de base, **sans** `/rest/v1`) et la clé anon dans
+   `lib/config/supabase_config.dart`.
+
+> Le Realtime sur `profiles` est requis pour que l'appairage se reflète en direct
+> des **deux** côtés ; celui sur `shared_entries` alimente le bocal du co-parent.
+> Si tu préfères, tu peux aussi cocher ces deux tables via le dashboard
+> (Database > Replication / Realtime) plutôt que par le SQL.
 
 > La clé `anon` est publique par conception : la sécurité repose entièrement sur le
 > Row Level Security défini dans `setup.sql`.
