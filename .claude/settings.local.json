@@ -5,7 +5,8 @@
       "Bash(flutter analyze *)",
       "Bash(./gradlew :app:compileDebugKotlin -q)",
       "Bash(./gradlew :app:compileDebugKotlin)",
-      "Bash(echo \"EXIT=$?\")"
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(flutter build *)"
     ]
   },
   "enabledMcpjsonServers": [
