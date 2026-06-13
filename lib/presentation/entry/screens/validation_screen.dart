@@ -56,11 +56,17 @@ class _ValidationScreenState extends State<ValidationScreen>
     final isPositive = visual.isPositive;
     final showResources = !isPositive && widget.intensity >= 4;
 
+    // Pour une émotion élidée (« l'amour »), on garde le « l' » collé au nom sur
+    // la ligne du sous-titre plutôt que de le laisser pendre en fin de titre.
+    final elides = elidesArticle(widget.emotion.name);
+    final lowerName = emotionNameForDisplay(widget.emotion.name);
     final title = isPositive
-        ? 'Je ressens ${articleFor(widget.emotion.name)}'
+        ? (elides
+            ? 'Je ressens de'
+            : 'Je ressens ${articleFor(widget.emotion.name)}')
         : 'Je reconnais ce\nque je ressens';
     final subtitle = isPositive
-        ? emotionNameForDisplay(widget.emotion.name)
+        ? (elides ? "l'$lowerName" : lowerName)
         : widget.emotion.name;
 
     return Scaffold(

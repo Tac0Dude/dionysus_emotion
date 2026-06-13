@@ -7,6 +7,7 @@ import '../../data/providers.dart';
 import '../../domain/entities/emotion.dart';
 import '../../domain/entities/entry.dart';
 import '../../domain/entities/quadrant.dart';
+import '../entry/emotion_articles.dart';
 import '../entry/quadrant_visuals.dart';
 import '../shell/bottom_nav.dart';
 import '../theme/app_colors.dart';
@@ -219,16 +220,18 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
     final counts = _emotionCounts(entries);
     final sorted = counts.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
-    final top = _emotions[sorted.first.key]?.name.toLowerCase();
-    final secondary = sorted.length > 1 ? _emotions[sorted[1].key]?.name.toLowerCase() : null;
-    final tertiary = sorted.length > 2 ? _emotions[sorted[2].key]?.name.toLowerCase() : null;
+    final top = _emotions[sorted.first.key]?.name;
+    final secondary =
+        sorted.length > 1 ? _emotions[sorted[1].key]?.name : null;
+    final tertiary =
+        sorted.length > 2 ? _emotions[sorted[2].key]?.name : null;
     final intro = _periodIntro();
-    final body = <String>['beaucoup de $top'];
+    final body = <String>['beaucoup ${partitiveDe(top ?? '')}'];
     if (secondary != null) {
       if (tertiary != null) {
-        body.add('un peu de $secondary et de $tertiary');
+        body.add('un peu ${partitiveDe(secondary)} et ${partitiveDe(tertiary)}');
       } else {
-        body.add('un peu de $secondary');
+        body.add('un peu ${partitiveDe(secondary)}');
       }
     }
     return '$intro ${body.join(", ")}. Les hauts et les bas font partie de ces journées.';
