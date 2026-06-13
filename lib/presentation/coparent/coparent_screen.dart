@@ -449,8 +449,10 @@ class _PairedViewState extends ConsumerState<_PairedView> {
                 onChanged: (p) => setState(() => _period = p),
               ),
               const SizedBox(height: 20),
-              // Lecture seule : pas de détail au-delà du bocal brut.
-              Jar(bubbles: bubbles, onTap: (_) {}),
+              // Lecture seule : pas de détail au-delà du bocal brut. Le bocal
+              // anime l'arrivée en temps réel d'une nouvelle émotion du co-parent
+              // (couvercle qui se soulève + bulle qui tombe).
+              Jar(bubbles: bubbles, onTap: (_) {}, animateArrivals: true),
               const SizedBox(height: 24),
               const Text(
                 'Dernière émotion enregistrée',

@@ -43,43 +43,113 @@ class _Placed {
   });
 }
 
-class Jar extends StatelessWidget {
+class Jar extends StatefulWidget {
   final List<EmotionBubbleData> bubbles;
   final void Function(EmotionBubbleData) onTap;
+
+  /// Quand vrai, l'arrivée d'une saisie plus récente que toutes les autres
+  /// déclenche une animation : le couvercle se soulève et la bulle tombe en
+  /// place (utilisé sur la page co-parent, mis à jour en temps réel).
+  final bool animateArrivals;
 
   const Jar({
     super.key,
     required this.bubbles,
     required this.onTap,
+    this.animateArrivals = false,
   });
+
+  @override
+  State<Jar> createState() => _JarState();
+}
+
+class _JarState extends State<Jar> with SingleTickerProviderStateMixin {
+  late final AnimationController _drop;
+  int? _droppingId;
+  late Set<int> _knownIds;
+  DateTime? _latestSeen;
+
+  @override
+  void initState() {
+    super.initState();
+    _drop = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    );
+    _knownIds = {for (final b in widget.bubbles) b.id};
+    _latestSeen = _maxCreatedAt(widget.bubbles);
+  }
+
+  @override
+  void didUpdateWidget(covariant Jar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final newcomers =
+        widget.bubbles.where((b) => !_knownIds.contains(b.id)).toList();
+    final prevLatest = _latestSeen;
+    _knownIds = {for (final b in widget.bubbles) b.id};
+    _latestSeen = _maxCreatedAt(widget.bubbles);
+
+    if (!widget.animateArrivals || newcomers.isEmpty) return;
+    // On n'anime que pour un arrivage réellement plus récent que tout ce qu'on
+    // connaissait — pas pour un changement de période (qui fait apparaître des
+    // saisies plus anciennes) ni pour le chargement initial.
+    if (prevLatest == null && newcomers.length != 1) return;
+    EmotionBubbleData? arrival;
+    for (final b in newcomers) {
+      if (prevLatest != null && !b.createdAt.isAfter(prevLatest)) continue;
+      if (arrival == null || b.createdAt.isAfter(arrival.createdAt)) {
+        arrival = b;
+      }
+    }
+    if (arrival == null) return;
+    final dropId = arrival.id;
+    setState(() => _droppingId = dropId);
+    _drop.forward(from: 0).whenComplete(() {
+      if (mounted) setState(() => _droppingId = null);
+    });
+  }
+
+  @override
+  void dispose() {
+    _drop.dispose();
+    super.dispose();
+  }
+
+  DateTime? _maxCreatedAt(List<EmotionBubbleData> list) {
+    DateTime? max;
+    for (final b in list) {
+      if (max == null || b.createdAt.isAfter(max)) max = b.createdAt;
+    }
+    return max;
+  }
+
+  /// Facteur d'ouverture du couvercle (0 = fermé, 1 = soulevé) selon
+  /// l'avancement de l'animation : il s'ouvre, reste ouvert pendant la chute,
+  /// puis se referme.
+  double _lidOpen(double v) {
+    if (_droppingId == null) return 0;
+    if (v < 0.18) return Curves.easeOut.transform(v / 0.18);
+    if (v < 0.78) return 1;
+    return 1 - Curves.easeIn.transform((v - 0.78) / 0.22);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       alignment: Alignment.topCenter,
+      // Le couvercle se soulève au-dessus du bocal pendant l'animation.
+      clipBehavior: Clip.none,
       children: [
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 200,
-              height: 26,
-              decoration: const BoxDecoration(
-                color: Color(0xFF2D2826),
-                borderRadius:
-                    BorderRadius.vertical(top: Radius.circular(8)),
-              ),
-            ),
-            Container(
-              width: 230,
-              height: 10,
-              decoration: const BoxDecoration(
-                color: Color(0xFF2D2826),
-                borderRadius:
-                    BorderRadius.vertical(bottom: Radius.circular(4)),
-              ),
-            ),
-          ],
+        AnimatedBuilder(
+          animation: _drop,
+          builder: (context, child) {
+            final open = _lidOpen(_drop.value);
+            return Transform.translate(
+              offset: Offset(0, -22 * open),
+              child: Transform.rotate(angle: -0.06 * open, child: child),
+            );
+          },
+          child: _buildLid(),
         ),
         Padding(
           padding: const EdgeInsets.only(top: 30),
@@ -92,7 +162,7 @@ class Jar extends StatelessWidget {
               borderRadius: BorderRadius.circular(22),
               border: Border.all(color: AppColors.divider, width: 1),
             ),
-            child: bubbles.isEmpty
+            child: widget.bubbles.isEmpty
                 ? const Center(
                     child: Padding(
                       padding: EdgeInsets.symmetric(vertical: 48),
@@ -109,7 +179,7 @@ class Jar extends StatelessWidget {
                 : LayoutBuilder(
                     builder: (context, constraints) {
                       final width = constraints.maxWidth;
-                      final placed = _pack(bubbles, width);
+                      final placed = _pack(widget.bubbles, width);
                       final pileHeight = placed.isEmpty
                           ? 0.0
                           : placed
@@ -119,21 +189,17 @@ class Jar extends StatelessWidget {
                       return SizedBox(
                         width: width,
                         height: stackHeight,
-                        child: Stack(
-                          clipBehavior: Clip.hardEdge,
-                          children: placed.map((p) {
-                            return Positioned(
-                              key: ValueKey(p.data.id),
-                              left: p.x,
-                              top: stackHeight - p.yFromBottom - p.size,
-                              width: p.size,
-                              height: p.size,
-                              child: _Bubble(
-                                placed: p,
-                                onTap: () => onTap(p.data),
-                              ),
+                        child: AnimatedBuilder(
+                          animation: _drop,
+                          builder: (context, _) {
+                            return Stack(
+                              clipBehavior: Clip.hardEdge,
+                              children: [
+                                for (final p in placed)
+                                  _positionedBubble(p, stackHeight),
+                              ],
                             );
-                          }).toList(),
+                          },
                         ),
                       );
                     },
@@ -144,73 +210,118 @@ class Jar extends StatelessWidget {
     );
   }
 
-  List<_Placed> _pack(List<EmotionBubbleData> bubbles, double width) {
-    if (width <= 0 || bubbles.isEmpty) return const [];
-
-    // Les émotions les plus anciennes se tassent au fond en premier ; les plus
-    // récentes viennent ensuite par-dessus, comme des dépôts successifs. Tri
-    // stable (id en départage) pour un rendu figé.
-    final sorted = [...bubbles]..sort((a, b) {
-        final c = a.createdAt.compareTo(b.createdAt);
-        if (c != 0) return c;
-        return a.id.compareTo(b.id);
-      });
-
-    final w = width.floor();
-    // skyline[k] = hauteur déjà remplie à la colonne k (depuis le bas).
-    final skyline = List<double>.filled(w, 0.0);
-    final placed = <_Placed>[];
-    final center = w / 2;
-
-    for (final bubble in sorted) {
-      final size = _bubbleSizes[bubble.intensity - 1];
-      final span = size.ceil();
-
-      // Bulle plus large que le bocal : on la pose à plat au-dessus du tas.
-      if (span >= w) {
-        final base = skyline.reduce(math.max);
-        for (var k = 0; k < w; k++) {
-          skyline[k] = base + size;
-        }
-        placed.add(_Placed(data: bubble, x: 0, yFromBottom: base, size: size));
-        continue;
-      }
-
-      // Comportement « liquide » : on cherche la position dont la base est la
-      // plus basse (remplit le creux le plus profond avant de monter). À base
-      // égale, on privilégie le centre pour former un tas naturel.
-      final maxStart = w - span;
-      var bestBase = double.infinity;
-      var bestX = 0;
-      var bestCenterDist = double.infinity;
-
-      for (var x = 0; x <= maxStart; x++) {
-        var base = 0.0;
-        for (var k = x; k < x + span; k++) {
-          if (skyline[k] > base) base = skyline[k];
-        }
-        final centerDist = (x + span / 2 - center).abs();
-        if (base < bestBase - 0.5 ||
-            (base <= bestBase + 0.5 && centerDist < bestCenterDist)) {
-          bestBase = base;
-          bestX = x;
-          bestCenterDist = centerDist;
-        }
-      }
-
-      final newTop = bestBase + size;
-      for (var k = bestX; k < bestX + span; k++) {
-        skyline[k] = newTop;
-      }
-      placed.add(_Placed(
-        data: bubble,
-        x: bestX.toDouble(),
-        yFromBottom: bestBase,
-        size: size,
-      ));
+  /// Bulle positionnée. La bulle en cours de chute interpole sa hauteur depuis
+  /// le haut du bocal jusqu'à sa place, avec un rebond (effet « tombe en place »).
+  Widget _positionedBubble(_Placed p, double stackHeight) {
+    final targetTop = stackHeight - p.yFromBottom - p.size;
+    var top = targetTop;
+    if (p.data.id == _droppingId) {
+      final startTop = -p.size - 8.0;
+      final dropT = ((_drop.value - 0.12) / 0.78).clamp(0.0, 1.0);
+      top = startTop +
+          (targetTop - startTop) * Curves.bounceOut.transform(dropT);
     }
-    return placed;
+    return Positioned(
+      key: ValueKey(p.data.id),
+      left: p.x,
+      top: top,
+      width: p.size,
+      height: p.size,
+      child: _Bubble(placed: p, onTap: () => widget.onTap(p.data)),
+    );
   }
+
+  Widget _buildLid() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 200,
+          height: 26,
+          decoration: const BoxDecoration(
+            color: Color(0xFF2D2826),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
+          ),
+        ),
+        Container(
+          width: 230,
+          height: 10,
+          decoration: const BoxDecoration(
+            color: Color(0xFF2D2826),
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(4)),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+List<_Placed> _pack(List<EmotionBubbleData> bubbles, double width) {
+  if (width <= 0 || bubbles.isEmpty) return const [];
+
+  // Les émotions les plus anciennes se tassent au fond en premier ; les plus
+  // récentes viennent ensuite par-dessus, comme des dépôts successifs. Tri
+  // stable (id en départage) pour un rendu figé.
+  final sorted = [...bubbles]..sort((a, b) {
+      final c = a.createdAt.compareTo(b.createdAt);
+      if (c != 0) return c;
+      return a.id.compareTo(b.id);
+    });
+
+  final w = width.floor();
+  // skyline[k] = hauteur déjà remplie à la colonne k (depuis le bas).
+  final skyline = List<double>.filled(w, 0.0);
+  final placed = <_Placed>[];
+  final center = w / 2;
+
+  for (final bubble in sorted) {
+    final size = _bubbleSizes[bubble.intensity - 1];
+    final span = size.ceil();
+
+    // Bulle plus large que le bocal : on la pose à plat au-dessus du tas.
+    if (span >= w) {
+      final base = skyline.reduce(math.max);
+      for (var k = 0; k < w; k++) {
+        skyline[k] = base + size;
+      }
+      placed.add(_Placed(data: bubble, x: 0, yFromBottom: base, size: size));
+      continue;
+    }
+
+    // Comportement « liquide » : on cherche la position dont la base est la
+    // plus basse (remplit le creux le plus profond avant de monter). À base
+    // égale, on privilégie le centre pour former un tas naturel.
+    final maxStart = w - span;
+    var bestBase = double.infinity;
+    var bestX = 0;
+    var bestCenterDist = double.infinity;
+
+    for (var x = 0; x <= maxStart; x++) {
+      var base = 0.0;
+      for (var k = x; k < x + span; k++) {
+        if (skyline[k] > base) base = skyline[k];
+      }
+      final centerDist = (x + span / 2 - center).abs();
+      if (base < bestBase - 0.5 ||
+          (base <= bestBase + 0.5 && centerDist < bestCenterDist)) {
+        bestBase = base;
+        bestX = x;
+        bestCenterDist = centerDist;
+      }
+    }
+
+    final newTop = bestBase + size;
+    for (var k = bestX; k < bestX + span; k++) {
+      skyline[k] = newTop;
+    }
+    placed.add(_Placed(
+      data: bubble,
+      x: bestX.toDouble(),
+      yFromBottom: bestBase,
+      size: size,
+    ));
+  }
+  return placed;
 }
 
 class _Bubble extends StatefulWidget {
