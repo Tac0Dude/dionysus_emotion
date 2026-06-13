@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/history/history_seen_service.dart';
 import '../../data/providers.dart';
 import '../../domain/entities/emotion.dart';
 import '../../domain/entities/entry.dart';
@@ -51,15 +52,24 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
   StreamSubscription<List<Entry>>? _entriesSub;
   int? _parentId;
 
+  late final HistorySeenService _seenService;
+
+  // Seuil figé pour cette consultation : les saisies postérieures scintillent
+  // comme nouveaux ajouts. Capturé à l'ouverture, avant d'enregistrer la visite.
+  DateTime? _newSince;
+
   @override
   void initState() {
     super.initState();
+    _seenService = ref.read(historySeenServiceProvider);
     WidgetsBinding.instance.addObserver(this);
     _load();
   }
 
   @override
   void dispose() {
+    // Fin de consultation : tout ce qui est affiché est désormais « vu ».
+    _seenService.markSeen();
     _entriesSub?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -72,6 +82,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
     // premier plan pour relancer la requête et récupérer ces saisies.
     if (state == AppLifecycleState.resumed && _parentId != null) {
       _subscribeEntries();
+    } else if (state == AppLifecycleState.paused) {
+      // L'app passe en arrière-plan alors qu'on regarde l'historique : on fige
+      // la consultation pour ne pas re-signaler ces saisies au prochain retour.
+      _seenService.markSeen();
     }
   }
 
@@ -87,6 +101,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
     final emotionsList = await refRepo.getAllEmotions();
     final quadrants = await refRepo.getQuadrants();
 
+    _newSince = await _seenService.lastSeenAt();
     _parentId = parent.id;
     _emotions = {for (final e in emotionsList) e.id: e};
     _quadrants = {for (final q in quadrants) q.id: q};
@@ -159,6 +174,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
           if (emotion == null) return null;
           final quadrantLabel = _quadrantLabelByEmotion[emotion.id] ?? '';
           final visual = visualFor(quadrantLabel);
+          final isNew =
+              _newSince != null && entry.createdAt.isAfter(_newSince!);
           return EmotionBubbleData(
             id: entry.id,
             emotionName: emotion.name,
@@ -166,6 +183,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
             color: visual.color,
             intensity: entry.intensity,
             createdAt: entry.createdAt,
+            isNew: isNew,
           );
         })
         .whereType<EmotionBubbleData>()

@@ -13,6 +13,10 @@ class EmotionBubbleData {
   final int intensity;
   final DateTime createdAt;
 
+  /// Saisie ajoutée depuis la dernière consultation de l'historique : la bulle
+  /// scintille pour signaler qu'il s'agit d'un nouvel ajout.
+  final bool isNew;
+
   const EmotionBubbleData({
     required this.id,
     required this.emotionName,
@@ -20,6 +24,7 @@ class EmotionBubbleData {
     required this.color,
     required this.intensity,
     required this.createdAt,
+    this.isNew = false,
   });
 }
 
@@ -118,6 +123,7 @@ class Jar extends StatelessWidget {
                           clipBehavior: Clip.hardEdge,
                           children: placed.map((p) {
                             return Positioned(
+                              key: ValueKey(p.data.id),
                               left: p.x,
                               top: stackHeight - p.yFromBottom - p.size,
                               width: p.size,
@@ -207,22 +213,69 @@ class Jar extends StatelessWidget {
   }
 }
 
-class _Bubble extends StatelessWidget {
+class _Bubble extends StatefulWidget {
   final _Placed placed;
   final VoidCallback onTap;
 
   const _Bubble({required this.placed, required this.onTap});
 
   @override
+  State<_Bubble> createState() => _BubbleState();
+}
+
+class _BubbleState extends State<_Bubble>
+    with SingleTickerProviderStateMixin {
+  AnimationController? _twinkle;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.placed.data.isNew) {
+      _twinkle = AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 900),
+      );
+      // Léger décalage de phase par bulle pour un scintillement non synchrone.
+      final delayMs = (widget.placed.data.id % 6) * 130;
+      Future.delayed(Duration(milliseconds: delayMs), () {
+        if (mounted) _twinkle?.repeat(reverse: true);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _twinkle?.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final data = placed.data;
-    final size = placed.size;
+    final bubble = _buildBubble(context);
+    final twinkle = _twinkle;
+    if (twinkle == null) return bubble;
+    return AnimatedBuilder(
+      animation: twinkle,
+      child: bubble,
+      builder: (context, child) {
+        final t = Curves.easeInOut.transform(twinkle.value);
+        return Opacity(
+          opacity: 0.55 + 0.45 * t,
+          child: Transform.scale(scale: 1.0 + 0.05 * t, child: child),
+        );
+      },
+    );
+  }
+
+  Widget _buildBubble(BuildContext context) {
+    final data = widget.placed.data;
+    final size = widget.placed.size;
     final border = _shapeBorder(data.shape, size);
     return Material(
       color: data.color,
       shape: border,
       child: InkWell(
-        onTap: onTap,
+        onTap: widget.onTap,
         customBorder: border,
         child: SizedBox(
           width: size,
