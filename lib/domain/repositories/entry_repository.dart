@@ -17,6 +17,11 @@ abstract class EntryRepository {
 
   Stream<List<Entry>> watchAllForParent(int parentId);
 
+  /// Force les streams de saisies à relire la base. Nécessaire après une saisie
+  /// faite via le widget : elle est écrite par une autre connexion SQLite, qui
+  /// ne notifie pas le cache de streams de l'app.
+  Future<void> refreshEntryStreams();
+
   Future<List<Entry>> getForDay({
     required int parentId,
     required DateTime day,

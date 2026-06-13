@@ -49,6 +49,14 @@ class EntryRepositoryImpl implements EntryRepository {
   }
 
   @override
+  Future<void> refreshEntryStreams() async {
+    // La saisie du widget est committée par une autre connexion SQLite : on
+    // marque « entries » comme modifiée pour que les streams Drift de l'app
+    // ré-exécutent leur requête et lisent la donnée fraîche du fichier.
+    _db.markTablesUpdated({_db.entries});
+  }
+
+  @override
   Stream<List<Entry>> watchAllForParent(int parentId) {
     return (_db.select(_db.entries)
           ..where((e) => e.parentId.equals(parentId))

@@ -78,10 +78,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // Les saisies faites depuis le widget passent par une autre connexion SQLite
-    // et ne notifient pas le stream Drift de l'app. On re-souscrit au retour au
-    // premier plan pour relancer la requête et récupérer ces saisies.
+    // et ne notifient pas le cache de streams Drift de l'app. Au retour au
+    // premier plan, on force une relecture pour récupérer ces saisies.
     if (state == AppLifecycleState.resumed && _parentId != null) {
-      _subscribeEntries();
+      ref.read(entryRepositoryProvider).refreshEntryStreams();
     } else if (state == AppLifecycleState.paused) {
       // L'app passe en arrière-plan alors qu'on regarde l'historique : on fige
       // la consultation pour ne pas re-signaler ces saisies au prochain retour.
@@ -115,19 +115,18 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
   void _subscribeEntries() {
     final parentId = _parentId;
     if (parentId == null) return;
-    // Annule l'ancienne souscription et relance la requête (re-listen sur un
-    // stream Drift ré-exécute la requête → données fraîches du fichier SQLite).
+    final repo = ref.read(entryRepositoryProvider);
     _entriesSub?.cancel();
-    _entriesSub = ref
-        .read(entryRepositoryProvider)
-        .watchAllForParent(parentId)
-        .listen((entries) {
+    _entriesSub = repo.watchAllForParent(parentId).listen((entries) {
       if (!mounted) return;
       setState(() {
         _entries = entries;
         _loading = false;
       });
     });
+    // Capte d'emblée d'éventuelles saisies faites via le widget (le stream Drift
+    // de l'app n'est pas notifié des écritures faites par une autre connexion).
+    repo.refreshEntryStreams();
   }
 
   DateTime _normalize(DateTime d) => DateTime(d.year, d.month, d.day);
