@@ -51,6 +51,16 @@ dev_dependencies:
   drift_dev: ^2.21.0
   build_runner: ^2.4.13
 
+  # Génération des icônes de lancement à partir de assets/icon/app_icon.png
+  flutter_launcher_icons: ^0.14.1
+
+# Icône de l'app : exécuter `dart run flutter_launcher_icons` après modification.
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon/app_icon.png"
+  min_sdk_android: 21
+
 flutter:
   uses-material-design: true
 

@@ -6,7 +6,7 @@
     <!-- Co-parent sharing talks to Supabase over the network -->
     <uses-permission android:name="android.permission.INTERNET" />
     <application
-        android:label="dionysus_emotion"
+        android:label="Dionysus emotion"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
