@@ -300,6 +300,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
                     Jar(
                       bubbles: bubbles,
                       onTap: (data) => _openEntry(data.id),
+                      animateNewOnAppear: true,
                     ),
                     const SizedBox(height: 16),
                     Text(

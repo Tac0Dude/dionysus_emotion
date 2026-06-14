@@ -62,11 +62,17 @@ class Jar extends StatefulWidget {
   /// place (utilisé sur la page co-parent, mis à jour en temps réel).
   final bool animateArrivals;
 
+  /// Quand vrai, au premier affichage, toutes les bulles marquées [isNew]
+  /// (ajoutées depuis la dernière consultation) tombent dans le bocal qui
+  /// s'ouvre, en cascade, puis scintillent (utilisé sur la page historique).
+  final bool animateNewOnAppear;
+
   const Jar({
     super.key,
     required this.bubbles,
     required this.onTap,
     this.animateArrivals = false,
+    this.animateNewOnAppear = false,
   });
 
   @override
@@ -75,7 +81,12 @@ class Jar extends StatefulWidget {
 
 class _JarState extends State<Jar> with SingleTickerProviderStateMixin {
   late final AnimationController _drop;
-  int? _droppingId;
+  // Bulles en cours de chute (1 en temps réel sur le co-parent ; potentiellement
+  // plusieurs en cascade au premier affichage de l'historique).
+  Set<int> _droppingIds = {};
+  Map<int, int> _dropOrder = const {};
+  int _dropCount = 0;
+  int _dropMs = 1100;
   late Set<int> _knownIds;
   DateTime? _latestSeen;
 
@@ -88,6 +99,30 @@ class _JarState extends State<Jar> with SingleTickerProviderStateMixin {
     );
     _knownIds = {for (final b in widget.bubbles) b.id};
     _latestSeen = _maxCreatedAt(widget.bubbles);
+    if (widget.animateNewOnAppear) _prepareAppearDrop();
+  }
+
+  /// Premier affichage de l'historique : prépare la chute en cascade des bulles
+  /// `isNew`. On fige les ids à animer avant la première frame (pour éviter un
+  /// flash en place) et on lance l'animation juste après.
+  void _prepareAppearDrop() {
+    final newcomers = widget.bubbles.where((b) => b.isNew).toList()
+      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    if (newcomers.isEmpty) return;
+    _dropCount = newcomers.length;
+    _dropOrder = {
+      for (var i = 0; i < newcomers.length; i++) newcomers[i].id: i,
+    };
+    _droppingIds = newcomers.map((b) => b.id).toSet();
+    // Animation un peu plus longue quand il y a beaucoup d'arrivées.
+    _dropMs = 1100 + math.min(_dropCount - 1, 6) * 140;
+    _drop.duration = Duration(milliseconds: _dropMs);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _drop.forward(from: 0).whenComplete(() {
+        if (mounted) setState(() => _droppingIds = {});
+      });
+    });
   }
 
   @override
@@ -113,9 +148,13 @@ class _JarState extends State<Jar> with SingleTickerProviderStateMixin {
     }
     if (arrival == null) return;
     final dropId = arrival.id;
-    setState(() => _droppingId = dropId);
+    setState(() {
+      _droppingIds = {dropId};
+      _dropOrder = {dropId: 0};
+      _dropCount = 1;
+    });
     _drop.forward(from: 0).whenComplete(() {
-      if (mounted) setState(() => _droppingId = null);
+      if (mounted) setState(() => _droppingIds = {});
     });
   }
 
@@ -137,10 +176,33 @@ class _JarState extends State<Jar> with SingleTickerProviderStateMixin {
   /// l'avancement de l'animation : il s'ouvre, reste ouvert pendant la chute,
   /// puis se referme.
   double _lidOpen(double v) {
-    if (_droppingId == null) return 0;
+    if (_droppingIds.isEmpty) return 0;
     if (v < 0.18) return Curves.easeOut.transform(v / 0.18);
     if (v < 0.78) return 1;
     return 1 - Curves.easeIn.transform((v - 0.78) / 0.22);
+  }
+
+  /// Avancement (0→1) de la chute d'une bulle, selon son rang dans la cascade.
+  /// Pour une seule bulle (temps réel), conserve la trajectoire d'origine.
+  double _dropProgress(double v, int order, int count) {
+    if (count <= 1) return ((v - 0.12) / 0.78).clamp(0.0, 1.0);
+    const start = 0.15, end = 0.80, fall = 0.6;
+    final span = end - start;
+    final perFall = span * fall;
+    final spread = span - perFall;
+    final s = start + (order / (count - 1)) * spread;
+    return ((v - s) / perFall).clamp(0.0, 1.0);
+  }
+
+  /// Fraction de la timeline à laquelle la bulle [order] a fini de tomber :
+  /// sert à ne déclencher son scintillement qu'une fois posée.
+  double _dropEndFraction(int order, int count) {
+    if (count <= 1) return 0.90;
+    const start = 0.15, end = 0.80, fall = 0.6;
+    final span = end - start;
+    final perFall = span * fall;
+    final spread = span - perFall;
+    return start + (order / (count - 1)) * spread + perFall;
   }
 
   @override
@@ -225,11 +287,17 @@ class _JarState extends State<Jar> with SingleTickerProviderStateMixin {
   Widget _positionedBubble(_Placed p, double stackHeight) {
     final targetTop = stackHeight - p.yFromBottom - p.height;
     var top = targetTop;
-    if (p.data.id == _droppingId) {
+    // Décalage de phase du scintillement par défaut (rendu non synchrone).
+    var shimmerDelayMs = (p.data.id % 6) * 130;
+    if (_droppingIds.contains(p.data.id)) {
+      final order = _dropOrder[p.data.id] ?? 0;
       final startTop = -p.height - 8.0;
-      final dropT = ((_drop.value - 0.12) / 0.78).clamp(0.0, 1.0);
+      final dropT = _dropProgress(_drop.value, order, _dropCount);
       top = startTop +
           (targetTop - startTop) * Curves.bounceOut.transform(dropT);
+      // Le scintillement ne démarre qu'une fois la bulle posée.
+      shimmerDelayMs = (_dropEndFraction(order, _dropCount) * _dropMs).round() +
+          (p.data.id % 4) * 70;
     }
     return Positioned(
       key: ValueKey(p.data.id),
@@ -237,7 +305,11 @@ class _JarState extends State<Jar> with SingleTickerProviderStateMixin {
       top: top,
       width: p.width,
       height: p.height,
-      child: _Bubble(placed: p, onTap: () => widget.onTap(p.data)),
+      child: _Bubble(
+        placed: p,
+        onTap: () => widget.onTap(p.data),
+        shimmerDelay: Duration(milliseconds: shimmerDelayMs),
+      ),
     );
   }
 
@@ -352,7 +424,15 @@ class _Bubble extends StatefulWidget {
   final _Placed placed;
   final VoidCallback onTap;
 
-  const _Bubble({required this.placed, required this.onTap});
+  /// Délai avant le début du scintillement : décalage de phase en temps normal,
+  /// ou attente de l'atterrissage quand la bulle tombe au premier affichage.
+  final Duration shimmerDelay;
+
+  const _Bubble({
+    required this.placed,
+    required this.onTap,
+    this.shimmerDelay = Duration.zero,
+  });
 
   @override
   State<_Bubble> createState() => _BubbleState();
@@ -370,9 +450,7 @@ class _BubbleState extends State<_Bubble>
         vsync: this,
         duration: const Duration(milliseconds: 900),
       );
-      // Léger décalage de phase par bulle pour un scintillement non synchrone.
-      final delayMs = (widget.placed.data.id % 6) * 130;
-      Future.delayed(Duration(milliseconds: delayMs), () {
+      Future.delayed(widget.shimmerDelay, () {
         if (mounted) _twinkle?.repeat(reverse: true);
       });
     }
