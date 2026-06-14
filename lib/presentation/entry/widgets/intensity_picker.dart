@@ -1,14 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../common/intensity_labels.dart';
 import '../../theme/app_colors.dart';
-
-const intensityLabels = <String>[
-  'Légère',
-  'Faible',
-  'Modérée',
-  'Forte',
-  'Intense',
-];
 
 class IntensityPicker extends StatelessWidget {
   final int? value;

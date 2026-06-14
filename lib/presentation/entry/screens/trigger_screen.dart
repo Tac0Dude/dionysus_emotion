@@ -9,6 +9,7 @@ import '../../../domain/entities/emotion.dart';
 import '../../../domain/entities/location.dart';
 import '../../../domain/entities/quadrant.dart';
 import '../../../widget/widget_sync.dart';
+import '../../common/intensity_labels.dart';
 import '../../shell/bottom_nav.dart';
 import '../../theme/app_colors.dart';
 import '../sentence_provider.dart';
@@ -38,14 +39,6 @@ class _TriggerScreenState extends ConsumerState<TriggerScreen> {
   List<Location> _locations = const [];
   bool _loading = true;
   bool _submitting = false;
-
-  static const _intensityLabels = <String>[
-    'légère',
-    'faible',
-    'modérée',
-    'forte',
-    'intense',
-  ];
 
   @override
   void initState() {
@@ -132,7 +125,7 @@ class _TriggerScreenState extends ConsumerState<TriggerScreen> {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final intensityLabel = _intensityLabels[widget.intensity - 1];
+    final intensityLabel = intensityLabels[widget.intensity - 1].toLowerCase();
 
     return Scaffold(
       appBar: AppBar(

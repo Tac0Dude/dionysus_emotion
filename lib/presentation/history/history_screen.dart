@@ -8,6 +8,7 @@ import '../../data/providers.dart';
 import '../../domain/entities/emotion.dart';
 import '../../domain/entities/entry.dart';
 import '../../domain/entities/quadrant.dart';
+import '../common/date_helpers.dart';
 import '../entry/emotion_articles.dart';
 import '../entry/quadrant_visuals.dart';
 import '../shell/bottom_nav.dart';
@@ -17,21 +18,6 @@ import 'entry_detail_screen.dart';
 import 'widgets/calendar_grid.dart';
 import 'widgets/jar.dart';
 import 'widgets/period_toggle.dart';
-
-const _monthsLong = [
-  'JANVIER',
-  'FÉVRIER',
-  'MARS',
-  'AVRIL',
-  'MAI',
-  'JUIN',
-  'JUILLET',
-  'AOÛT',
-  'SEPTEMBRE',
-  'OCTOBRE',
-  'NOVEMBRE',
-  'DÉCEMBRE',
-];
 
 class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
@@ -129,33 +115,13 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
     repo.refreshEntryStreams();
   }
 
-  DateTime _normalize(DateTime d) => DateTime(d.year, d.month, d.day);
-
   List<Entry> _entriesInPeriod() {
-    final now = DateTime.now();
-    switch (_period) {
-      case HistoryPeriod.day:
-        final start = _normalize(now);
-        final end = start.add(const Duration(days: 1));
-        return _entries
-            .where((e) => !e.createdAt.isBefore(start) &&
-                e.createdAt.isBefore(end))
-            .toList();
-      case HistoryPeriod.week:
-        final start = _normalize(now.subtract(const Duration(days: 6)));
-        final end = _normalize(now).add(const Duration(days: 1));
-        return _entries
-            .where((e) => !e.createdAt.isBefore(start) &&
-                e.createdAt.isBefore(end))
-            .toList();
-      case HistoryPeriod.month:
-        final start = DateTime(now.year, now.month, 1);
-        final end = DateTime(now.year, now.month + 1, 1);
-        return _entries
-            .where((e) => !e.createdAt.isBefore(start) &&
-                e.createdAt.isBefore(end))
-            .toList();
-    }
+    final range = periodRange(_period);
+    return _entries
+        .where((e) =>
+            !e.createdAt.isBefore(range.start) &&
+            e.createdAt.isBefore(range.end))
+        .toList();
   }
 
   Map<int, int> _emotionCounts(List<Entry> entries) {
@@ -211,7 +177,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
     for (final e in _entries) {
       if (e.createdAt.isBefore(start) || !e.createdAt.isBefore(end)) continue;
       if (_emotions[e.emotionId] == null) continue;
-      final dayKey = _normalize(e.createdAt);
+      final dayKey = normalizeDate(e.createdAt);
       final current = latestByDay[dayKey];
       if (current == null || e.createdAt.isAfter(current.createdAt)) {
         latestByDay[dayKey] = e;
@@ -269,7 +235,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
     final sortedCounts = counts.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     final now = DateTime.now();
-    final monthLabel = '${_monthsLong[now.month - 1]} ${now.year}';
+    final monthLabel =
+        '${frenchMonths[now.month - 1].toUpperCase()} ${now.year}';
 
     return Scaffold(
       body: SafeArea(

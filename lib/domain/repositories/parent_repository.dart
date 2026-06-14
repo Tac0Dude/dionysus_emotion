@@ -13,8 +13,6 @@ abstract class ParentRepository {
 
   Future<Parent?> getCurrentParent();
 
-  Future<Parent?> getById(int id);
-
   Stream<Parent?> watchCurrentParent();
 
   Future<void> updateSharingConsent({

@@ -1,8 +1,31 @@
 import 'package:flutter/material.dart';
 
+import '../../common/date_helpers.dart';
 import '../../theme/app_colors.dart';
 
 enum HistoryPeriod { week, day, month }
+
+/// Intervalle `[start, end)` couvrant la période sélectionnée, relatif à [now]
+/// (par défaut maintenant). Utilisé pour filtrer les saisies par période.
+({DateTime start, DateTime end}) periodRange(HistoryPeriod period,
+    [DateTime? now]) {
+  final ref = now ?? DateTime.now();
+  switch (period) {
+    case HistoryPeriod.day:
+      final start = normalizeDate(ref);
+      return (start: start, end: start.add(const Duration(days: 1)));
+    case HistoryPeriod.week:
+      return (
+        start: normalizeDate(ref.subtract(const Duration(days: 6))),
+        end: normalizeDate(ref).add(const Duration(days: 1)),
+      );
+    case HistoryPeriod.month:
+      return (
+        start: DateTime(ref.year, ref.month, 1),
+        end: DateTime(ref.year, ref.month + 1, 1),
+      );
+  }
+}
 
 class PeriodToggle extends StatelessWidget {
   final HistoryPeriod value;

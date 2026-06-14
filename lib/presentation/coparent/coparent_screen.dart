@@ -7,20 +7,13 @@ import '../../domain/entities/coparent_profile.dart';
 import '../../domain/entities/parent.dart';
 import '../../domain/entities/shared_emotion.dart';
 import '../../domain/repositories/coparent_repository.dart';
+import '../common/intensity_labels.dart';
 import '../entry/quadrant_visuals.dart';
 import '../history/widgets/jar.dart';
 import '../history/widgets/period_toggle.dart';
 import '../shell/bottom_nav.dart';
 import '../theme/app_colors.dart';
 import 'coparent_scan_screen.dart';
-
-const _intensityLabels = <String>[
-  'Légère',
-  'Faible',
-  'Modérée',
-  'Forte',
-  'Intense',
-];
 
 /// Charge utile du QR de l'utilisateur courant (profil garanti créé au passage).
 final _myPairingPayloadProvider = FutureProvider<String?>((ref) async {
@@ -397,26 +390,12 @@ class _PairedView extends ConsumerStatefulWidget {
 class _PairedViewState extends ConsumerState<_PairedView> {
   HistoryPeriod _period = HistoryPeriod.week;
 
-  DateTime _normalize(DateTime d) => DateTime(d.year, d.month, d.day);
-
   List<SharedEmotion> _inPeriod(List<SharedEmotion> all) {
-    final now = DateTime.now();
-    final DateTime start;
-    final DateTime end;
-    switch (_period) {
-      case HistoryPeriod.day:
-        start = _normalize(now);
-        end = start.add(const Duration(days: 1));
-      case HistoryPeriod.week:
-        start = _normalize(now.subtract(const Duration(days: 6)));
-        end = _normalize(now).add(const Duration(days: 1));
-      case HistoryPeriod.month:
-        start = DateTime(now.year, now.month, 1);
-        end = DateTime(now.year, now.month + 1, 1);
-    }
+    final range = periodRange(_period);
     return all
         .where((e) =>
-            !e.createdAt.isBefore(start) && e.createdAt.isBefore(end))
+            !e.createdAt.isBefore(range.start) &&
+            e.createdAt.isBefore(range.end))
         .toList();
   }
 
@@ -590,7 +569,7 @@ class _LastEmotionCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            '${_intensityLabels[emotion.intensity - 1]} · ${_time(emotion.createdAt)}',
+            '${intensityLabels[emotion.intensity - 1]} · ${_time(emotion.createdAt)}',
             style: const TextStyle(
               fontSize: 14,
               color: AppColors.textPrimary,

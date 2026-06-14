@@ -62,13 +62,6 @@ class ReferenceRepositoryImpl implements ReferenceRepository {
   }
 
   @override
-  Future<Stage?> getStageByCode(String code) async {
-    final row = await (_db.select(_db.stages)..where((s) => s.code.equals(code)))
-        .getSingleOrNull();
-    return row?.toDomain();
-  }
-
-  @override
   Future<List<Activity>> getActivities() async {
     final rows = await (_db.select(_db.activities)
           ..orderBy([(a) => OrderingTerm.asc(a.id)]))

@@ -32,13 +32,6 @@ class EntryRepositoryImpl implements EntryRepository {
   }
 
   @override
-  Future<Entry?> getById(int id) async {
-    final row = await (_db.select(_db.entries)..where((e) => e.id.equals(id)))
-        .getSingleOrNull();
-    return row?.toDomain();
-  }
-
-  @override
   Future<Entry?> getLatestForParent(int parentId) async {
     final row = await (_db.select(_db.entries)
           ..where((e) => e.parentId.equals(parentId))
@@ -89,10 +82,5 @@ class EntryRepositoryImpl implements EntryRepository {
           ..orderBy([(e) => OrderingTerm.asc(e.createdAt)]))
         .get();
     return rows.map((r) => r.toDomain()).toList();
-  }
-
-  @override
-  Future<void> deleteEntry(int id) async {
-    await (_db.delete(_db.entries)..where((e) => e.id.equals(id))).go();
   }
 }

@@ -10,8 +10,6 @@ abstract class EntryRepository {
     DateTime? createdAt,
   });
 
-  Future<Entry?> getById(int id);
-
   /// Dernière saisie (toutes dates) du parent, ou null s'il n'en a aucune.
   Future<Entry?> getLatestForParent(int parentId);
 
@@ -29,6 +27,4 @@ abstract class EntryRepository {
     required int parentId,
     required DateTime day,
   });
-
-  Future<void> deleteEntry(int id);
 }

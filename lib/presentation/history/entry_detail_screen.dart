@@ -9,45 +9,14 @@ import '../../domain/entities/emotion.dart';
 import '../../domain/entities/entry.dart';
 import '../../domain/entities/location.dart';
 import '../../domain/entities/quadrant.dart';
+import '../common/date_helpers.dart';
+import '../common/intensity_labels.dart';
 import '../entry/quadrant_visuals.dart';
 import '../entry/sentence_provider.dart';
 import '../entry/widgets/quadrant_tile.dart';
 import '../shell/bottom_nav.dart';
 import '../theme/app_colors.dart';
 import 'widgets/intensity_dots.dart';
-
-const _intensityLabels = <String>[
-  'Légère',
-  'Faible',
-  'Modérée',
-  'Forte',
-  'Intense',
-];
-
-const _monthsLong = [
-  'janvier',
-  'février',
-  'mars',
-  'avril',
-  'mai',
-  'juin',
-  'juillet',
-  'août',
-  'septembre',
-  'octobre',
-  'novembre',
-  'décembre',
-];
-
-const _weekdaysLong = [
-  'Lundi',
-  'Mardi',
-  'Mercredi',
-  'Jeudi',
-  'Vendredi',
-  'Samedi',
-  'Dimanche',
-];
 
 class EntryDetailScreen extends ConsumerStatefulWidget {
   final Entry entry;
@@ -100,8 +69,8 @@ class _EntryDetailScreenState extends ConsumerState<EntryDetailScreen> {
   }
 
   String _formatDate(DateTime d) {
-    final weekday = _weekdaysLong[d.weekday - 1];
-    return '$weekday ${d.day} ${_monthsLong[d.month - 1]} ${d.year}';
+    final weekday = frenchWeekdays[d.weekday - 1];
+    return '$weekday ${d.day} ${frenchMonths[d.month - 1]} ${d.year}';
   }
 
   String _formatTime(DateTime d) =>
@@ -191,7 +160,7 @@ class _EntryDetailScreenState extends ConsumerState<EntryDetailScreen> {
           const SizedBox(height: 8),
           Center(
             child: Text(
-              _intensityLabels[entry.intensity - 1],
+              intensityLabels[entry.intensity - 1],
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,

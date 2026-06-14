@@ -43,13 +43,6 @@ class ParentRepositoryImpl implements ParentRepository {
   }
 
   @override
-  Future<Parent?> getById(int id) async {
-    final row = await (_db.select(_db.parents)..where((p) => p.id.equals(id)))
-        .getSingleOrNull();
-    return row?.toDomain();
-  }
-
-  @override
   Stream<Parent?> watchCurrentParent() {
     return (_db.select(_db.parents)
           ..orderBy([(p) => OrderingTerm.asc(p.createdAt)])

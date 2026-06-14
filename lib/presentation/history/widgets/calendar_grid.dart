@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../common/date_helpers.dart';
 import '../../theme/app_colors.dart';
 
 class CalendarGrid extends StatelessWidget {
@@ -16,14 +17,12 @@ class CalendarGrid extends StatelessWidget {
 
   static const _weekdayLabels = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
-  DateTime _normalize(DateTime d) => DateTime(d.year, d.month, d.day);
-
   @override
   Widget build(BuildContext context) {
     final firstOfMonth = DateTime(month.year, month.month, 1);
     final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
     final leadingEmpty = (firstOfMonth.weekday - 1) % 7;
-    final today = _normalize(DateTime.now());
+    final today = normalizeDate(DateTime.now());
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -73,7 +72,7 @@ class CalendarGrid extends StatelessWidget {
                       } else {
                         final date = DateTime(month.year, month.month, dayNumber);
                         final color = dayColors[date];
-                        final isToday = _normalize(date) == today;
+                        final isToday = normalizeDate(date) == today;
                         cell = SizedBox(
                           width: cellWidth,
                           height: cellWidth,

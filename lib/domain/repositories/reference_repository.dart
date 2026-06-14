@@ -17,8 +17,6 @@ abstract class ReferenceRepository {
 
   Future<List<Stage>> getStages();
 
-  Future<Stage?> getStageByCode(String code);
-
   Future<List<Activity>> getActivities();
 
   Future<Activity?> getActivity(int id);

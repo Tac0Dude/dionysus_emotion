@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/providers.dart';
 import '../../../domain/entities/stage.dart';
+import '../../common/date_helpers.dart';
 import '../../theme/app_colors.dart';
 import '../onboarding_state.dart';
 
@@ -33,23 +34,8 @@ class _ConfirmationScreenState extends ConsumerState<ConfirmationScreen> {
     });
   }
 
-  static const _months = [
-    'janvier',
-    'février',
-    'mars',
-    'avril',
-    'mai',
-    'juin',
-    'juillet',
-    'août',
-    'septembre',
-    'octobre',
-    'novembre',
-    'décembre',
-  ];
-
   String _formatBirthDate(DateTime date) {
-    return '${date.day} ${_months[date.month - 1]} ${date.year}';
+    return '${date.day} ${frenchMonths[date.month - 1]} ${date.year}';
   }
 
   @override
