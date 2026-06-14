@@ -87,41 +87,55 @@ class _ValidationScreenState extends State<ValidationScreen>
             Expanded(
               child: SafeArea(
                 top: false,
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 24),
-                      Text(
-                        widget.sentence,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 22,
-                          color: AppColors.textPrimary,
-                          height: 1.4,
-                        ),
-                      ),
-                      const Spacer(),
-                      if (showResources) _ResourceList(),
-                      const SizedBox(height: 16),
-                      FadeTransition(
-                        opacity: Tween<double>(begin: 0.35, end: 1.0).animate(
-                          CurvedAnimation(
-                            parent: _pulseController,
-                            curve: Curves.easeInOut,
+                // Scrollable quand le contenu (phrase longue + ressources)
+                // dépasse la place disponible ; sinon le Spacer pousse le pied
+                // de page en bas comme avant.
+                child: LayoutBuilder(
+                  builder: (context, constraints) => SingleChildScrollView(
+                    child: ConstrainedBox(
+                      constraints:
+                          BoxConstraints(minHeight: constraints.maxHeight),
+                      child: IntrinsicHeight(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 28, vertical: 16),
+                          child: Column(
+                            children: [
+                              const SizedBox(height: 24),
+                              Text(
+                                widget.sentence,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  color: AppColors.textPrimary,
+                                  height: 1.4,
+                                ),
+                              ),
+                              const Spacer(),
+                              if (showResources) _ResourceList(),
+                              const SizedBox(height: 16),
+                              FadeTransition(
+                                opacity: Tween<double>(begin: 0.35, end: 1.0)
+                                    .animate(
+                                  CurvedAnimation(
+                                    parent: _pulseController,
+                                    curve: Curves.easeInOut,
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Presser pour continuer…',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: AppColors.textSecondary,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        child: const Text(
-                          'Presser pour continuer…',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: AppColors.textSecondary,
-                            letterSpacing: 0.3,
-                          ),
-                        ),
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
