@@ -74,9 +74,7 @@ class CoparentScreen extends ConsumerWidget {
                 ? const _UnpairedView()
                 : _PairedView(coparentId: coparentId),
             loading: () => const _Loader(),
-            error: (_, _) => const _CenteredMessage(
-              'Impossible de récupérer l’état d’appairage.',
-            ),
+            error: (_, _) => const _PairingErrorView(),
           );
         },
       );
@@ -315,6 +313,76 @@ class _UnpairedView extends ConsumerWidget {
   }
 }
 
+// --- Erreur d'état d'appairage : échappatoire pour rompre le lien -----------
+
+/// Affiché quand le flux d'état d'appairage lui-même échoue. On ne sait pas si
+/// l'utilisateur est appairé ou non : on lui offre quand même de rompre le lien
+/// (idempotent côté serveur) pour ne jamais rester coincé, ainsi qu'un réessai.
+class _PairingErrorView extends ConsumerWidget {
+  const _PairingErrorView();
+
+  Future<void> _confirmUnlink(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Rompre l’appairage ?'),
+        content: const Text(
+          'Si l’appairage est défectueux, le rompre te permet de repartir de '
+          'zéro et de ré-appairer un appareil. Vous pourrez vous ré-appairer '
+          'plus tard.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Rompre l’appairage'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await ref.read(coparentRepositoryProvider).unlink();
+    ref.invalidate(coparentIdProvider);
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Impossible de récupérer l’état d’appairage.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 15, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 20),
+            OutlinedButton.icon(
+              onPressed: () => ref.invalidate(coparentIdProvider),
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('Réessayer'),
+            ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: () => _confirmUnlink(context, ref),
+              icon: const Icon(Icons.link_off, size: 18),
+              label: const Text('Rompre l’appairage'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // --- Appairé : bocal (filtrable) + dernière émotion (lecture seule) ---------
 
 class _PairedView extends ConsumerStatefulWidget {
@@ -389,90 +457,105 @@ class _PairedViewState extends ConsumerState<_PairedView> {
     final name = profileAsync.asData?.value?.firstName ?? '';
     final title = name.isEmpty ? 'Mon co-parent' : name;
 
-    return entriesAsync.when(
-      loading: () => const _Loader(),
-      error: (_, _) => const _CenteredMessage(
-        'Impossible de charger les émotions du co-parent.',
-      ),
-      data: (allEntries) {
-        final periodEntries = _inPeriod(allEntries);
-        final bubbles = periodEntries
-            .map((e) => EmotionBubbleData(
-                  id: e.createdAt.millisecondsSinceEpoch,
-                  emotionName: e.emotionName,
-                  shape: visualFor(e.quadrantLabel).shape,
-                  color: visualFor(e.quadrantLabel).color,
-                  intensity: e.intensity,
-                  createdAt: e.createdAt,
-                ))
-            .toList();
-        // Dernière émotion : la plus récente, toutes périodes confondues.
-        final last = allEntries.isEmpty
-            ? null
-            : allEntries.reduce(
-                (a, b) => a.createdAt.isAfter(b.createdAt) ? a : b);
-
-        return SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    // Le header (titre + « Arrêter le partage ») reste toujours affiché, même si
+    // le flux des émotions du co-parent ne se charge pas (profil cassé, souci
+    // réseau/Realtime…). Sinon l'appairage devient impossible à rompre, ce qui
+    // bloque aussi tout nouvel appairage côté serveur (already paired).
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: textTheme.displaySmall?.copyWith(
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
+              Expanded(
+                child: Text(
+                  title,
+                  style: textTheme.displaySmall?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textPrimary,
                   ),
-                  TextButton.icon(
-                    onPressed: _confirmUnlink,
-                    icon: const Icon(Icons.link_off, size: 18),
-                    label: const Text('Arrêter le partage'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Le bocal d’émotions de ton co-parent',
-                style: TextStyle(fontSize: 15, color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: 16),
-              PeriodToggle(
-                value: _period,
-                onChanged: (p) => setState(() => _period = p),
-              ),
-              const SizedBox(height: 20),
-              // Lecture seule : pas de détail au-delà du bocal brut. Le bocal
-              // anime l'arrivée en temps réel d'une nouvelle émotion du co-parent
-              // (couvercle qui se soulève + bulle qui tombe).
-              Jar(bubbles: bubbles, onTap: (_) {}, animateArrivals: true),
-              const SizedBox(height: 24),
-              const Text(
-                'Dernière émotion enregistrée',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textSecondary,
-                  letterSpacing: 1.2,
                 ),
               ),
-              const SizedBox(height: 10),
-              if (last == null)
-                const _CenteredMessage(
-                    'Aucune émotion partagée pour l’instant.')
-              else
-                _LastEmotionCard(emotion: last),
+              TextButton.icon(
+                onPressed: _confirmUnlink,
+                icon: const Icon(Icons.link_off, size: 18),
+                label: const Text('Arrêter le partage'),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.textSecondary,
+                ),
+              ),
             ],
           ),
-        );
-      },
+          const SizedBox(height: 6),
+          const Text(
+            'Le bocal d’émotions de ton co-parent',
+            style: TextStyle(fontSize: 15, color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 16),
+          entriesAsync.when(
+            loading: () => const Padding(
+              padding: EdgeInsets.symmetric(vertical: 48),
+              child: _Loader(),
+            ),
+            error: (_, _) => const Padding(
+              padding: EdgeInsets.symmetric(vertical: 32),
+              child: _CenteredMessage(
+                'Impossible de charger les émotions du co-parent pour le moment.',
+              ),
+            ),
+            data: (allEntries) => _buildEntries(allEntries),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEntries(List<SharedEmotion> allEntries) {
+    final periodEntries = _inPeriod(allEntries);
+    final bubbles = periodEntries
+        .map((e) => EmotionBubbleData(
+              id: e.createdAt.millisecondsSinceEpoch,
+              emotionName: e.emotionName,
+              shape: visualFor(e.quadrantLabel).shape,
+              color: visualFor(e.quadrantLabel).color,
+              intensity: e.intensity,
+              createdAt: e.createdAt,
+            ))
+        .toList();
+    // Dernière émotion : la plus récente, toutes périodes confondues.
+    final last = allEntries.isEmpty
+        ? null
+        : allEntries.reduce((a, b) => a.createdAt.isAfter(b.createdAt) ? a : b);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        PeriodToggle(
+          value: _period,
+          onChanged: (p) => setState(() => _period = p),
+        ),
+        const SizedBox(height: 20),
+        // Lecture seule : pas de détail au-delà du bocal brut. Le bocal
+        // anime l'arrivée en temps réel d'une nouvelle émotion du co-parent
+        // (couvercle qui se soulève + bulle qui tombe).
+        Jar(bubbles: bubbles, onTap: (_) {}, animateArrivals: true),
+        const SizedBox(height: 24),
+        const Text(
+          'Dernière émotion enregistrée',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textSecondary,
+            letterSpacing: 1.2,
+          ),
+        ),
+        const SizedBox(height: 10),
+        if (last == null)
+          const _CenteredMessage('Aucune émotion partagée pour l’instant.')
+        else
+          _LastEmotionCard(emotion: last),
+      ],
     );
   }
 }
