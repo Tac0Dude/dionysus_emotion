@@ -101,8 +101,14 @@ class _AppRootState extends ConsumerState<_AppRoot>
     if (state == AppLifecycleState.resumed) {
       final entryRepo = ref.read(entryRepositoryProvider);
       entryRepo.refreshEntryStreams();
+      // Rattrapage : pousse explicitement vers le serveur les saisies faites via
+      // le widget pendant que l'app était en arrière-plan (si le push direct du
+      // widget a échoué, ex. hors-ligne). Idempotent (upsert), donc sans risque.
+      ref.read(sharedEntrySyncProvider).pushPending();
       Future.delayed(const Duration(seconds: 2), () {
-        if (mounted) entryRepo.refreshEntryStreams();
+        if (!mounted) return;
+        entryRepo.refreshEntryStreams();
+        ref.read(sharedEntrySyncProvider).pushPending();
       });
     }
   }
