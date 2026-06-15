@@ -1,7 +1,7 @@
 name: dionysus_emotion
 description: "Emotional monitoring app for parents of premature babies in the NICU"
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: ^3.10.1
@@ -34,6 +34,9 @@ dependencies:
 
   # Home screen widget (Android) — interactive emotion entry
   home_widget: ^0.7.0
+
+  # Ouverture de liens externes (ressources d'aide dans l'écran de validation)
+  url_launcher: ^6.3.2
 
   # Co-parent sharing (remote backend, anonymous auth, realtime)
   supabase_flutter: ^2.8.0

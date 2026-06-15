@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../domain/entities/emotion.dart';
 import '../../../domain/entities/quadrant.dart';
@@ -167,10 +168,12 @@ class _ResourceList extends StatelessWidget {
         const _ResourceTile(
           icon: Icons.favorite_outline,
           label: 'Né Trop Tôt — Parents bénévoles',
+          url: 'https://netroptot.ch/',
         ),
         const _ResourceTile(
           icon: Icons.person_outline,
-          label: 'Pédopsychiatrie CHUV',
+          label: 'Néonatologie CHUV',
+          url: 'https://www.chuv.ch/fr/neonatologie/nat-home',
         ),
         const _ResourceTile(
           icon: Icons.forum_outlined,
@@ -186,11 +189,26 @@ class _ResourceTile extends StatelessWidget {
   final IconData icon;
   final String label;
 
-  const _ResourceTile({required this.icon, required this.label});
+  /// Lien externe optionnel. S'il est fourni, la tuile est cliquable et affiche
+  /// une flèche ; sinon (ex. « Parler à l'équipe soignante »), c'est un simple
+  /// rappel sans flèche ni action.
+  final String? url;
+
+  const _ResourceTile({required this.icon, required this.label, this.url});
+
+  Future<void> _open() async {
+    final target = url;
+    if (target == null) return;
+    final uri = Uri.parse(target);
+    // Best-effort : on ouvre dans le navigateur externe ; un échec (pas de
+    // navigateur, lien invalide) ne doit pas casser l'écran de validation.
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return ConstrainedBox(
+    final isLink = url != null;
+    final row = ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 48),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 6),
@@ -207,14 +225,20 @@ class _ResourceTile extends StatelessWidget {
                 ),
               ),
             ),
-            const Icon(
-              Icons.arrow_forward,
-              size: 18,
-              color: AppColors.textSecondary,
-            ),
+            if (isLink)
+              const Icon(
+                Icons.arrow_forward,
+                size: 18,
+                color: AppColors.textSecondary,
+              ),
           ],
         ),
       ),
     );
+
+    if (!isLink) return row;
+    // InkWell consomme le tap : il n'atteint pas le GestureDetector parent qui
+    // ferme l'écran, donc ouvrir un lien ne quitte pas la page de validation.
+    return InkWell(onTap: _open, child: row);
   }
 }
