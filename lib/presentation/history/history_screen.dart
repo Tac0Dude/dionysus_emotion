@@ -278,24 +278,6 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
                         height: 1.45,
                       ),
                     ),
-                    if (sortedCounts.isNotEmpty) ...[
-                      const SizedBox(height: 14),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: sortedCounts
-                            .map(
-                              (e) => _CountTag(
-                                label: _emotions[e.key]?.name ?? '',
-                                count: e.value,
-                                color: visualFor(
-                                  _quadrantLabelByEmotion[e.key] ?? '',
-                                ).color,
-                              ),
-                            )
-                            .toList(),
-                      ),
-                    ],
                     const SizedBox(height: 24),
                     Text(
                       monthLabel,
